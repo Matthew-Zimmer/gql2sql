@@ -38,6 +38,8 @@ interface Extensions {
   [summaryHandlerExtensionName]: SummaryHandlerExtension;
 }
 
+export type Extension<K extends keyof Extensions> = Record<K, Extensions[K]>;
+
 const getExtension = <K extends keyof Extensions>(extensions: any, name: K, defaultValue: Extensions[K]): Extensions[K] => {
   return name in extensions ? extensions[name] : defaultValue;
 }
@@ -61,14 +63,11 @@ const filterNames = {
   'gteq': '>=',
   'lt': '<',
   'gt': '>',
-  'is': 'is',
-  'isNot': 'is not',
   'in': 'in',
   'notIn': 'not in',
 } as const;
 
 type PrimitiveValueType =
-  | NullValueNode
   | BooleanValueNode
   | IntValueNode
   | FloatValueNode
@@ -76,7 +75,6 @@ type PrimitiveValueType =
 
 const isPrimitiveValueType = (n: ValueNode): n is PrimitiveValueType => {
   switch (n.kind) {
-    case Kind.NULL:
     case Kind.BOOLEAN:
     case Kind.INT:
     case Kind.FLOAT:
@@ -273,11 +271,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           case Kind.STRING:
             value = arg.value.value.toString();
             break;
-          case Kind.NULL:
-            value = 'null';
-            break;
           case Kind.LIST:
-            value = '(' + arg.value.values.filter(isPrimitiveValueType).map(x => `${x.kind === Kind.NULL ? 'null' : x.value}`) + ')';
+            value = '(' + arg.value.values.filter(isPrimitiveValueType).map(x => x.value) + ')';
             break;
           case Kind.VARIABLE:
             value = lookupVariableToSqlLike(arg.value.name.value);
@@ -290,6 +285,14 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             condition: filterNames[name as keyof typeof filterNames],
             value,
           });
+      }
+      else if (name === "isNull") {
+        const value = (arg.value as BooleanValueNode).value;
+        filters.push({
+          kind: 'FieldFilterCondition',
+          condition: value ? 'is' : 'is not',
+          value: 'null'
+        });
       }
     }
 
@@ -827,7 +830,7 @@ ${n.sorts.length === 0 ? Prisma.empty : Prisma.join(n.sorts.map(generateSortNode
     };
 
     const generateWhereNode = (n: WhereNode): Prisma.Sql => {
-      return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)} ${n.value}`;
+      return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)} ${n.value === 'null' ? Prisma.raw('null') : n.value}`;
     };
 
     const generateSortNode = (n: SortNode): Prisma.Sql => {

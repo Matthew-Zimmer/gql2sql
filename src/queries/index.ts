@@ -1,1 +1,1 @@
-export * from './post';
+export const dummy = 1;

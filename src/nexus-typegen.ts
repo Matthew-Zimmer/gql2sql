@@ -34,14 +34,14 @@ export interface NexusGenObjects {
   }
   Author: { // root type
     firstName?: string | null; // String
-    id: string; // ID!
+    id?: string | null; // ID
     lastName?: string | null; // String
   }
   AuthorSummary: { // root type
     total?: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
   }
   Authors: { // root type
-    details?: NexusGenRootTypes['Author'][] | null; // [Author!]
+    details?: Array<NexusGenRootTypes['Author'] | null> | null; // [Author]
     summary?: NexusGenRootTypes['AuthorSummary'] | null; // AuthorSummary
   }
   FloatAggregation: { // root type
@@ -60,14 +60,14 @@ export interface NexusGenObjects {
   }
   Post: { // root type
     authors?: NexusGenRootTypes['Authors'] | null; // Authors
-    id: string; // ID!
+    id?: string | null; // ID
     title?: string | null; // String
   }
   PostSummary: { // root type
     total?: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
   }
   Posts: { // root type
-    details?: NexusGenRootTypes['Post'][] | null; // [Post!]
+    details?: Array<NexusGenRootTypes['Post'] | null> | null; // [Post]
     summary?: NexusGenRootTypes['PostSummary'] | null; // PostSummary
   }
   Query: {};
@@ -94,14 +94,14 @@ export interface NexusGenFieldTypes {
   }
   Author: { // field return type
     firstName: string | null; // String
-    id: string; // ID!
+    id: string | null; // ID
     lastName: string | null; // String
   }
   AuthorSummary: { // field return type
     total: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
   }
   Authors: { // field return type
-    details: NexusGenRootTypes['Author'][] | null; // [Author!]
+    details: Array<NexusGenRootTypes['Author'] | null> | null; // [Author]
     summary: NexusGenRootTypes['AuthorSummary'] | null; // AuthorSummary
   }
   FloatAggregation: { // field return type
@@ -120,17 +120,18 @@ export interface NexusGenFieldTypes {
   }
   Post: { // field return type
     authors: NexusGenRootTypes['Authors'] | null; // Authors
-    id: string; // ID!
+    id: string | null; // ID
     title: string | null; // String
   }
   PostSummary: { // field return type
     total: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
   }
   Posts: { // field return type
-    details: NexusGenRootTypes['Post'][] | null; // [Post!]
+    details: Array<NexusGenRootTypes['Post'] | null> | null; // [Post]
     summary: NexusGenRootTypes['PostSummary'] | null; // PostSummary
   }
   Query: { // field return type
+    authors: NexusGenRootTypes['Authors'] | null; // Authors
     posts: NexusGenRootTypes['Posts'] | null; // Posts
   }
   StringAggregation: { // field return type
@@ -183,6 +184,7 @@ export interface NexusGenFieldTypeNames {
     summary: 'PostSummary'
   }
   Query: { // field return type name
+    authors: 'Authors'
     posts: 'Posts'
   }
   StringAggregation: { // field return type name
@@ -196,12 +198,42 @@ export interface NexusGenArgTypes {
   Author: {
     firstName: { // args
       eq?: string | null; // String
+      in?: Array<string | null> | null; // [String]
+      isNull?: boolean | null; // Boolean
+      neq?: string | null; // String
+      notIn?: Array<string | null> | null; // [String]
+      sort?: NexusGenEnums['SortOp'] | null; // SortOp
+    }
+    id: { // args
+      eq?: string | null; // ID
+      in?: Array<string | null> | null; // [ID]
+      isNull?: boolean | null; // Boolean
+      neq?: string | null; // ID
+      notIn?: Array<string | null> | null; // [ID]
+    }
+    lastName: { // args
+      eq?: string | null; // String
+      in?: Array<string | null> | null; // [String]
+      isNull?: boolean | null; // Boolean
+      neq?: string | null; // String
+      notIn?: Array<string | null> | null; // [String]
       sort?: NexusGenEnums['SortOp'] | null; // SortOp
     }
   }
   Post: {
+    id: { // args
+      eq?: string | null; // ID
+      in?: Array<string | null> | null; // [ID]
+      isNull?: boolean | null; // Boolean
+      neq?: string | null; // ID
+      notIn?: Array<string | null> | null; // [ID]
+    }
     title: { // args
       eq?: string | null; // String
+      in?: Array<string | null> | null; // [String]
+      isNull?: boolean | null; // Boolean
+      neq?: string | null; // String
+      notIn?: Array<string | null> | null; // [String]
       sort?: NexusGenEnums['SortOp'] | null; // SortOp
     }
   }
