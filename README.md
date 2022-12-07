@@ -17,3 +17,10 @@ npm run dev
 
 3. Go to http://localhost:4000/graphql
 4. Mess around in the playground
+
+## TODO
+
+1. Junction tables need to be tested
+2. Summary filters and sorts need to be applied
+3. limit and offset style pagination
+

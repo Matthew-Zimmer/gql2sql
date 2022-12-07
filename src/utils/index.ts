@@ -87,8 +87,29 @@ const isPrimitiveValueType = (n: ValueNode): n is PrimitiveValueType => {
   }
 }
 
+const toSqlLike = (x: any, nested?: boolean): string => {
+  switch (typeof x) {
+    case 'boolean':
+    case 'string':
+    case 'number':
+      return `${x}`;
+    case 'object':
+      if (x === null)
+        return 'null';
+      else if (Array.isArray(x) && !nested)
+        return `(${x.map(x => toSqlLike(x, true)).join(',')})`;
+    default:
+      throw new Error(`Cannot convert ${x} to sql like safely`);
+  }
+}
+
 export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.CollectionField => {
   const root = info.fieldNodes[0];
+
+  const lookupVariableToSqlLike = (name: string): string => {
+    const value = info.variableValues[name];
+    return toSqlLike(value);
+  }
 
   const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[]] => {
     let details: Field.DetailField[] = [];
@@ -224,13 +245,23 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     for (const arg of args) {
       const name = arg.name.value;
       if (name === 'sort') {
-        if (arg.value.kind === Kind.ENUM && arg.value.value in ['asc', 'desc']) {
-          sorts.push({
-            kind: 'FieldSortCondition',
-            condition: arg.value.value as SQL.SortOp,
-          });
+        let value: string | undefined = undefined;
+
+        switch (arg.value.kind) {
+          case Kind.ENUM:
+            value = arg.value.value;
+            break;
+          case Kind.VARIABLE:
+            value = lookupVariableToSqlLike(arg.value.name.value);
+            break;
         }
 
+        if (value && ['asc', 'desc'].includes(value)) {
+          sorts.push({
+            kind: 'FieldSortCondition',
+            condition: value as SQL.SortOp,
+          });
+        }
       }
       else if (name in filterNames) {
         let value: string | undefined = undefined;
@@ -248,8 +279,9 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           case Kind.LIST:
             value = '(' + arg.value.values.filter(isPrimitiveValueType).map(x => `${x.kind === Kind.NULL ? 'null' : x.value}`) + ')';
             break;
-          // case Kind.VARIABLE:
-          //   arg.value.name.value
+          case Kind.VARIABLE:
+            value = lookupVariableToSqlLike(arg.value.name.value);
+            break;
         }
 
         if (value)
@@ -436,15 +468,16 @@ export namespace Field {
     };
 
     const generateDetailField = (x: DetailField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
-      const column: SQL.ExpressionNode = x.raw ? { kind: 'RawExpressionNode', value: x.name } : { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: table }, right: { kind: 'IdentifierExpressionNode', name: x.name } };
+      const subColumnExpr = SQL.simpleColumnNode(rawTable, x.name).expr;
+      const selectColumnExpr: SQL.ExpressionNode = x.raw ? { kind: 'RawExpressionNode', value: x.name } : SQL.simpleColumnNode(table, x.name).expr;
 
-      const whereNodes = x.conditions.map(c => generateFieldFilterCondition(c, SQL.simpleColumnNode(rawTable, x.name).expr));
-      const sortNodes = x.sorts.map(c => generateFieldSortCondition(c, column));
+      const whereNodes = x.conditions.map(c => generateFieldFilterCondition(c, subColumnExpr));
+      const sortNodes = x.sorts.map(c => generateFieldSortCondition(c, subColumnExpr));
 
       return [
         [
           { kind: 'StringExpressionNode', value: x.alias },
-          column,
+          selectColumnExpr,
         ],
         whereNodes,
         sortNodes

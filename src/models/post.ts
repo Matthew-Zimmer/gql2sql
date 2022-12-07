@@ -1,4 +1,4 @@
-import { intArg, objectType, stringArg } from 'nexus'
+import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
 import { aliasExtensionName, Field, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName } from '../utils';
 
 
@@ -10,7 +10,7 @@ export const Post = objectType({
   definition(t) {
     t.nonNull.id('id');
 
-    t.string('title');
+    t.string('title', { args: { eq: stringArg(), sort: arg({ type: 'SortOp' }) } });
 
     t.field('authors', { type: 'Authors', extensions: { [relationExtensionName]: { parentId: 'author_id', childId: 'id', to: 'author' } } })
   },
@@ -36,7 +36,7 @@ export const Author = objectType({
   extensions: { [tableExtensionName]: { name: 'Author' } },
   definition(t) {
     t.nonNull.id('id');
-    t.string('firstName', { extensions: { [aliasExtensionName]: { name: 'first_name' } }, args: { eq: stringArg() } });
+    t.string('firstName', { extensions: { [aliasExtensionName]: { name: 'first_name' } }, args: { eq: stringArg(), sort: arg({ type: 'SortOp' }) } });
     t.string('lastName', { extensions: { [aliasExtensionName]: { name: 'last_name' } } });
   },
 });
@@ -74,6 +74,11 @@ export const Authors = objectType({
 // --------------------------------------------------
 // library code
 // --------------------------------------------------
+
+export const sortOpEnum = enumType({
+  name: 'SortOp',
+  members: ['asc', 'desc']
+});
 
 const totalSummaryHandler: SummaryHandlerExtension = {
   handler: (selection, subSelection, type) => {
