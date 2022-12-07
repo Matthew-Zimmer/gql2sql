@@ -192,6 +192,11 @@ export interface NexusGenFieldTypeNames {
 }
 
 export interface NexusGenArgTypes {
+  Author: {
+    firstName: { // args
+      eq?: string | null; // String
+    }
+  }
 }
 
 export interface NexusGenAbstractTypeMembers {

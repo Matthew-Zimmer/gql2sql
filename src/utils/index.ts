@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { FieldNode, GraphQLField, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLResolveInfo, GraphQLType, isListType, isNonNullType, isObjectType, Kind, SelectionNode } from 'graphql';
+import { ArgumentNode, BooleanValueNode, FieldNode, FloatValueNode, GraphQLField, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLResolveInfo, GraphQLType, IntValueNode, isListType, isNonNullType, isObjectType, Kind, ListValueNode, NullValueNode, SelectionNode, StringValueNode, ValueNode, VariableNode } from 'graphql';
 import { inspect } from 'util';
 
 export const prepareSQLForQuery = (info: GraphQLResolveInfo): Prisma.Sql => {
@@ -52,6 +52,39 @@ const reduceToObjectType = (t: GraphQLType): GraphQLObjectType => {
   const rType = reduceType(t);
   if (isObjectType(rType)) return rType;
   else throw new Error(`${t.toString()} did not reduce to object type`);
+}
+
+const filterNames = {
+  'eq': '=',
+  'neq': '!=',
+  'lteq': '<=',
+  'gteq': '>=',
+  'lt': '<',
+  'gt': '>',
+  'is': 'is',
+  'isNot': 'is not',
+  'in': 'in',
+  'notIn': 'not in',
+} as const;
+
+type PrimitiveValueType =
+  | NullValueNode
+  | BooleanValueNode
+  | IntValueNode
+  | FloatValueNode
+  | StringValueNode
+
+const isPrimitiveValueType = (n: ValueNode): n is PrimitiveValueType => {
+  switch (n.kind) {
+    case Kind.NULL:
+    case Kind.BOOLEAN:
+    case Kind.INT:
+    case Kind.FLOAT:
+    case Kind.STRING:
+      return true;
+    default:
+      return false;
+  }
 }
 
 export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.CollectionField => {
@@ -136,7 +169,6 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           for (const subSelection of selection.selectionSet?.selections ?? []) {
             switch (subSelection.kind) {
               case Kind.FIELD: {
-                console.log(extensions);
                 const { handler } = getExtension(extensions, summaryHandlerExtensionName, defaultSummaryHandlerExtension);
                 summaries.push(handler(selection, subSelection, type));
               }
@@ -174,15 +206,63 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
   const createDetailField = (x: FieldNode, type: GraphQLObjectType): Field.DetailField => {
     const name = x.name.value;
     const { extensions } = type.getFields()[name];
+    const [sorts, conditions] = sortAndFilterConditionsFromArgs(x.arguments ?? []);
     return {
       kind: 'DetailField',
       alias: name,
       name: aliasExtensionName in extensions ? (extensions[aliasExtensionName] as AliasExtension).name : name,
       skip: false,
-      conditions: [], // TODO extract filter conditions
-      sorts: [], // TODO extract sort conditions
+      conditions,
+      sorts,
     };
   }
+
+  const sortAndFilterConditionsFromArgs = (args: readonly ArgumentNode[]): [Field.FieldSortCondition[], Field.FieldFilterCondition[]] => {
+    const sorts: Field.FieldSortCondition[] = [];
+    const filters: Field.FieldFilterCondition[] = [];
+
+    for (const arg of args) {
+      const name = arg.name.value;
+      if (name === 'sort') {
+        if (arg.value.kind === Kind.ENUM && arg.value.value in ['asc', 'desc']) {
+          sorts.push({
+            kind: 'FieldSortCondition',
+            condition: arg.value.value as SQL.SortOp,
+          });
+        }
+
+      }
+      else if (name in filterNames) {
+        let value: string | undefined = undefined;
+
+        switch (arg.value.kind) {
+          case Kind.INT:
+          case Kind.BOOLEAN:
+          case Kind.FLOAT:
+          case Kind.STRING:
+            value = arg.value.value.toString();
+            break;
+          case Kind.NULL:
+            value = 'null';
+            break;
+          case Kind.LIST:
+            value = '(' + arg.value.values.filter(isPrimitiveValueType).map(x => `${x.kind === Kind.NULL ? 'null' : x.value}`) + ')';
+            break;
+          // case Kind.VARIABLE:
+          //   arg.value.name.value
+        }
+
+        if (value)
+          filters.push({
+            kind: 'FieldFilterCondition',
+            condition: filterNames[name as keyof typeof filterNames],
+            value,
+          });
+      }
+    }
+
+    return [sorts, filters];
+  };
 
   const rootCollection = createCollection(root, reduceToObjectType(info.returnType));
 
@@ -259,22 +339,27 @@ export namespace Field {
     toJunction: DirectRelation;
     fromJunction: DirectRelation;
   }
+
+  interface CollectionMetaInfo {
+    hasFilters: boolean;
+  }
+
   /**
    * TODO!! need to do something with the summary filter and sort arguments
    */
   export function generate(field: CollectionField): SQL.SelectNode {
-    console.log('-----------------------------------');
-    console.log(inspect(field, undefined, null, true));
-    console.log('-----------------------------------');
+    // console.log('-----------------------------------');
+    // console.log(inspect(field, undefined, null, true));
+    // console.log('-----------------------------------');
 
     let tableAliasCount = 0;
     const makeTableAlias = () => `t${tableAliasCount++}`;
 
-    const generateCollectionField = (x: CollectionField): [SQL.SelectNode, string] => {
+    const generateCollectionField = (x: CollectionField): [SQL.SelectNode, string, CollectionMetaInfo] => {
       const rawTable = makeTableAlias();
       const table = makeTableAlias();
 
-      const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, table);
+      const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
       const [summary, summaryHavingNodes, summarySortNodes] = generateSummaryFields(x.summaries, table);
       const relations = generateRelationFields(x.relations, rawTable);
 
@@ -324,20 +409,24 @@ export namespace Field {
         sorts: [],
       };
 
-      return [node, table];
+      const info: CollectionMetaInfo = {
+        hasFilters: detailsWhereNodes.length !== 0,
+      }
+
+      return [node, table, info];
     };
 
     const createDetailsAggExpression = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
       return { kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'array_agg' }, args: [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }] };
     }
 
-    const generateDetailFields = (x: DetailField[], table: string): [SQL.ExpressionNode[], SQL.WhereNode[], SQL.SortNode[]] => {
+    const generateDetailFields = (x: DetailField[], rawTable: string, table: string): [SQL.ExpressionNode[], SQL.WhereNode[], SQL.SortNode[]] => {
       const whereNodes: SQL.WhereNode[] = [];
       const sortNodes: SQL.SortNode[] = [];
       const args: SQL.ExpressionNode[] = [];
 
       for (const f of x) {
-        const [cols, wNodes, sNodes] = generateDetailField(f, table);
+        const [cols, wNodes, sNodes] = generateDetailField(f, rawTable, table);
         args.push(...cols);
         whereNodes.push(...wNodes);
         sortNodes.push(...sNodes);
@@ -346,10 +435,10 @@ export namespace Field {
       return [args, whereNodes, sortNodes];
     };
 
-    const generateDetailField = (x: DetailField, table: string): [[SQL.StringExpressionNode, SQL.ExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
+    const generateDetailField = (x: DetailField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
       const column: SQL.ExpressionNode = x.raw ? { kind: 'RawExpressionNode', value: x.name } : { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: table }, right: { kind: 'IdentifierExpressionNode', name: x.name } };
 
-      const whereNodes = x.conditions.map(c => generateFieldFilterCondition(c, column));
+      const whereNodes = x.conditions.map(c => generateFieldFilterCondition(c, SQL.simpleColumnNode(rawTable, x.name).expr));
       const sortNodes = x.sorts.map(c => generateFieldSortCondition(c, column));
 
       return [
@@ -368,7 +457,7 @@ export namespace Field {
       const args: SQL.ExpressionNode[] = [];
 
       for (const f of x) {
-        const [cols, wNodes, sNodes] = generateSummaryField(f, table);
+        const [cols, wNodes, sNodes] = generateSummaryField(f, table, table);
         args.push(...cols);
         whereNodes.push(...wNodes);
         sortNodes.push(...sNodes);
@@ -377,8 +466,8 @@ export namespace Field {
       return [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }, whereNodes, sortNodes];
     };
 
-    const generateSummaryField = (x: SummaryField, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
-      const [col, whereNodes, sortNodes] = generateDetailField(x.field, table);
+    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
+      const [col, whereNodes, sortNodes] = generateDetailField(x.field, rawTable, table);
 
       return [
         [
@@ -405,7 +494,7 @@ export namespace Field {
     };
 
     const generateRelationField = (x: RelationField, table: string): SQL.JoinNode => {
-      const [collection, collectionTable] = generateCollectionField(x.collection);
+      const [collection, collectionTable, info] = generateCollectionField(x.collection);
 
       const groupColumName = `${collectionTable}__gc`;
 
@@ -425,7 +514,7 @@ export namespace Field {
           };
           return {
             kind: 'DirectJoinNode',
-            op: 'left',
+            op: info.hasFilters ? 'inner' : 'left',
             parentId: SQL.simpleColumnNode(table, x.relation.parentId),
             childId: SQL.simpleColumnNode(joinTable, groupColumName),
             from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
@@ -620,9 +709,9 @@ export namespace SQL {
 
   export function generate(node: SelectNode): Prisma.Sql {
 
-    console.log('-----------------------------------');
-    console.log(inspect(node, undefined, null, true));
-    console.log('-----------------------------------');
+    // console.log('-----------------------------------');
+    // console.log(inspect(node, undefined, null, true));
+    // console.log('-----------------------------------');
 
     const generateSelectNode = (n: SelectNode): Prisma.Sql => {
       return Prisma.sql`\

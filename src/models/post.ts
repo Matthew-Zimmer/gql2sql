@@ -1,4 +1,4 @@
-import { objectType } from 'nexus'
+import { intArg, objectType, stringArg } from 'nexus'
 import { aliasExtensionName, Field, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName } from '../utils';
 
 
@@ -36,7 +36,7 @@ export const Author = objectType({
   extensions: { [tableExtensionName]: { name: 'Author' } },
   definition(t) {
     t.nonNull.id('id');
-    t.string('firstName', { extensions: { [aliasExtensionName]: { name: 'first_name' } } });
+    t.string('firstName', { extensions: { [aliasExtensionName]: { name: 'first_name' } }, args: { eq: stringArg() } });
     t.string('lastName', { extensions: { [aliasExtensionName]: { name: 'last_name' } } });
   },
 });
