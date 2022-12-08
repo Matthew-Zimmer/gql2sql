@@ -22,5 +22,5 @@ npm run dev
 
 1. Junction tables need to be tested
 2. Summary filters and sorts need to be applied
-3. limit and offset style pagination
+3. [x] limit and offset style pagination (maybe only half done see comments in code about maybe needing more sorting)
 

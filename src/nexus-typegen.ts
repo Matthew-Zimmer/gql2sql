@@ -36,6 +36,7 @@ export interface NexusGenObjects {
     firstName?: string | null; // String
     id?: string | null; // ID
     lastName?: string | null; // String
+    posts?: NexusGenRootTypes['Posts'] | null; // Posts
   }
   AuthorSummary: { // root type
     total?: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
@@ -96,6 +97,7 @@ export interface NexusGenFieldTypes {
     firstName: string | null; // String
     id: string | null; // ID
     lastName: string | null; // String
+    posts: NexusGenRootTypes['Posts'] | null; // Posts
   }
   AuthorSummary: { // field return type
     total: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
@@ -149,6 +151,7 @@ export interface NexusGenFieldTypeNames {
     firstName: 'String'
     id: 'ID'
     lastName: 'String'
+    posts: 'Posts'
   }
   AuthorSummary: { // field return type name
     total: 'ArrayAggregation'
@@ -219,8 +222,16 @@ export interface NexusGenArgTypes {
       notIn?: Array<string | null> | null; // [String]
       sort?: NexusGenEnums['SortOp'] | null; // SortOp
     }
+    posts: { // args
+      limit?: number | null; // Int
+      offset?: number | null; // Int
+    }
   }
   Post: {
+    authors: { // args
+      limit?: number | null; // Int
+      offset?: number | null; // Int
+    }
     id: { // args
       eq?: string | null; // ID
       in?: Array<string | null> | null; // [ID]
@@ -235,6 +246,16 @@ export interface NexusGenArgTypes {
       neq?: string | null; // String
       notIn?: Array<string | null> | null; // [String]
       sort?: NexusGenEnums['SortOp'] | null; // SortOp
+    }
+  }
+  Query: {
+    authors: { // args
+      limit?: number | null; // Int
+      offset?: number | null; // Int
+    }
+    posts: { // args
+      limit?: number | null; // Int
+      offset?: number | null; // Int
     }
   }
 }

@@ -1,28 +1,42 @@
 import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
-import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName } from 'nexus/dist/core';
+import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
 import { aliasExtensionName, Extension, Field, prepareSQLForQuery, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName } from '../utils';
 
 class CollectionTypeBlock {
   private fields: NexusOutputFieldConfigWithName<any, any>[] = [];
   private aliasName?: string;
+  private relations: { parentId: string, to: string, childId: string }[] = [];
+  private typeMods: ('nonNull' | 'list')[] = [];
 
   field(name: string, x: FieldOutConfig<any, any>) {
     this.fields.push({
       name,
       ...x,
+      type: this.typeMods.reduce((p, c) => {
+        switch (c) {
+          case 'list':
+            return list(p);
+          case 'nonNull':
+            // @ts-ignore
+            return nonNull(p);
+        }
+      }, x.type),
       extensions: {
         ...x.extensions,
         ...this.aliasName ? aliasExtension(this.aliasName) : undefined,
+        ...this.relations.length === 0 ? undefined : relationExtension(...this.relations),
       },
     });
+    this.typeMods = [];
     this.aliasName = undefined;
+    this.relations = [];
   }
 
-  int(name: string, config?: FieldOutConfig<any, any>) {
+  int(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
     this.field(name, { type: 'Int', ...config });
   }
 
-  id(name: string, config?: FieldOutConfig<any, any>) {
+  id(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
     this.field(name, { type: 'ID', ...config });
   }
 
@@ -30,17 +44,45 @@ class CollectionTypeBlock {
     this.field(name, { type: 'String', ...config });
   }
 
-  float(name: string, config?: FieldOutConfig<any, any>) {
+  float(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
     this.field(name, { type: 'Float', ...config });
   }
 
-  boolean(name: string, config?: FieldOutConfig<any, any>) {
+  boolean(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
     this.field(name, { type: 'Boolean', ...config });
+  }
+
+  get nonNull() {
+    this.typeMods.push('nonNull');
+    return this;
+  }
+
+  get list() {
+    this.typeMods.push('list');
+    return this;
   }
 
   alias(name: string) {
     this.aliasName = name;
     return this;
+  }
+
+  relation(parentId: string, to: string, childId: string) {
+    this.relations.push({ parentId, to, childId });
+    return this;
+  }
+
+  collection(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
+    this.field(name, {
+      ...config,
+      // @ts-expect-error
+      type: `${name[0].toUpperCase()}${name.slice(1)}`,
+      args: {
+        limit: intArg(),
+        offset: intArg(),
+        ...config?.args,
+      },
+    });
   }
 }
 
@@ -112,8 +154,13 @@ export const collectionType = (config: CollectionTypeConfig) => {
           type: collectionName,
           async resolve(_root, args, ctx, info) {
             const query = prepareSQLForQuery(info);
+            console.log(query.sql);
             const data = await ctx.prisma.$queryRaw<{ root: any }[]>(query);
             return data[0].root;
+          },
+          args: {
+            limit: intArg(),
+            offset: intArg(),
           },
         })
       },
@@ -186,8 +233,14 @@ export const aliasExtension = (name: string): Extension<typeof aliasExtensionNam
   return { [aliasExtensionName]: { name } };
 }
 
-export const relationExtension = (to: string, parentId: string, childId: string): Extension<typeof relationExtensionName> => {
-  return { [relationExtensionName]: { childId, parentId, to } };
+export const relationExtension = (...relations: { to: string, parentId: string, childId: string }[]): Extension<typeof relationExtensionName> => {
+  switch (relations.length) {
+    case 1:
+      return { [relationExtensionName]: relations[0] };
+    case 2:
+    default:
+      throw new Error(`Relations can only be a single or double relation`);
+  }
 }
 
 export const sortOpEnum = enumType({

@@ -5,7 +5,7 @@ export const PostCollection = collectionType({
   definition(t) {
     t.id('id');
     t.string('title');
-    t.field('authors', { type: 'Authors', extensions: { ...relationExtension('Author', 'author_id', 'id') } });
+    t.relation('author_id', 'Author', 'id').collection('authors');
   }
 });
 

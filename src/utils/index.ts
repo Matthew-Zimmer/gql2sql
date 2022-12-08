@@ -85,17 +85,17 @@ const isPrimitiveValueType = (n: ValueNode): n is PrimitiveValueType => {
   }
 }
 
-const toSqlLike = (x: any, nested?: boolean): string => {
+const toSqlLike = (x: any, nested?: boolean): any => {
   switch (typeof x) {
     case 'boolean':
     case 'string':
     case 'number':
-      return `${x}`;
+      return x;
     case 'object':
       if (x === null)
         return 'null';
       else if (Array.isArray(x) && !nested)
-        return `(${x.map(x => toSqlLike(x, true)).join(',')})`;
+        return x.map(x => toSqlLike(x, true)).join(',');
     default:
       throw new Error(`Cannot convert ${x} to sql like safely`);
   }
@@ -104,9 +104,12 @@ const toSqlLike = (x: any, nested?: boolean): string => {
 export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.CollectionField => {
   const root = info.fieldNodes[0];
 
+  const lookupVariable = (name: string): any => {
+    return info.variableValues[name];
+  }
+
   const lookupVariableToSqlLike = (name: string): string => {
-    const value = info.variableValues[name];
-    return toSqlLike(value);
+    return toSqlLike(lookupVariable(name));
   }
 
   const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[]] => {
@@ -202,6 +205,24 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return summaries;
   };
 
+  const paginationArgs = (args: readonly ArgumentNode[]): Field.PaginationField | undefined => {
+    const lookupInt = (x?: ValueNode): number | undefined => {
+      if (!x) return undefined;
+      switch (x.kind) {
+        case Kind.INT:
+          return Number(x.value);
+        case Kind.VARIABLE: {
+          const val = lookupVariable(x.name.value)
+          return typeof val === 'number' && Number.isInteger(val) ? val : undefined;
+        }
+      }
+    }
+    const offset = lookupInt(args.find(x => x.name.value === 'offset')?.value);
+    const limit = lookupInt(args.find(x => x.name.value === 'limit')?.value);
+
+    return offset === undefined && limit === undefined ? undefined : { kind: 'PaginationField', limit, offset };
+  };
+
   const createCollection = (field: FieldNode, type: GraphQLObjectType): Field.CollectionField => {
     const [details, summaries, relations] = visitCollectionSelections(field.selectionSet?.selections ?? [], type);
 
@@ -211,6 +232,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
     const tableExtension = extensions[tableExtensionName] as TableExtension;
 
+    const pagination = paginationArgs(field.arguments ?? []);
+
     return {
       kind: 'Collection',
       skip: false,
@@ -219,6 +242,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       details,
       summaries,
       relations,
+      pagination,
     };
   };
 
@@ -262,17 +286,17 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
         }
       }
       else if (name in filterNames) {
-        let value: string | undefined = undefined;
+        let value: any | undefined = undefined;
 
         switch (arg.value.kind) {
           case Kind.INT:
           case Kind.BOOLEAN:
           case Kind.FLOAT:
           case Kind.STRING:
-            value = arg.value.value.toString();
+            value = arg.value.value;
             break;
           case Kind.LIST:
-            value = '(' + arg.value.values.filter(isPrimitiveValueType).map(x => x.value) + ')';
+            value = arg.value.values.filter(isPrimitiveValueType).map(x => x.value);
             break;
           case Kind.VARIABLE:
             value = lookupVariableToSqlLike(arg.value.name.value);
@@ -316,6 +340,7 @@ export namespace Field {
     summaries: SummaryField[];
     details: DetailField[];
     relations: RelationField[];
+    pagination?: PaginationField;
   }
 
   export interface SummaryField {
@@ -375,8 +400,15 @@ export namespace Field {
     fromJunction: DirectRelation;
   }
 
+  export interface PaginationField {
+    kind: "PaginationField";
+    offset?: number;
+    limit?: number;
+  }
+
   interface CollectionMetaInfo {
     hasFilters: boolean;
+    hasPagination: boolean;
   }
 
   /**
@@ -417,7 +449,7 @@ export namespace Field {
               value: 'json_build_object'
             },
             args: [
-              ...(x.details.length === 0 ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
+              ...(x.details.length + x.relations.length === 0 ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
               ...(x.summaries.length === 0 ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
             ]
           },
@@ -437,6 +469,11 @@ export namespace Field {
             joins: relations,
             conditions: detailsWhereNodes,
             sorts: detailsSortNodes,
+            pagination: !x.pagination ? undefined : {
+              kind: 'PaginationNode',
+              limit: x.pagination.limit,
+              offset: x.pagination.offset,
+            },
           },
         },
         joins: [],
@@ -446,7 +483,8 @@ export namespace Field {
 
       const info: CollectionMetaInfo = {
         hasFilters: detailsWhereNodes.length !== 0,
-      }
+        hasPagination: x.pagination !== undefined,
+      };
 
       return [node, table, info];
     };
@@ -533,12 +571,33 @@ export namespace Field {
       const [collection, collectionTable, info] = generateCollectionField(x.collection);
 
       const groupColumName = `${collectionTable}__gc`;
+      const rowNumberName = `${collectionTable}__rn`;
+      const rowNumberColumn = SQL.simpleColumnNode(collectionTable, rowNumberName);
+      const fromSelectNode = collection.from as SQL.FromSelectNode;
 
       switch (x.relation.kind) {
         case 'DirectRelation': {
           const joinTable = makeTableAlias();
+          const paginatedFrom: SQL.FromSelectNode | {} = !info.hasPagination ? {} : {
+            from: {
+              ...fromSelectNode,
+              select: {
+                ...fromSelectNode.select,
+                columns: [{
+                  kind: 'ColumnNode',
+                  expr: { kind: 'RawExpressionNode', value: '*' }
+                }, {
+                  kind: 'ColumnNode',
+                  expr: { kind: 'RawExpressionNode', value: `row_number() over (partition by "${fromSelectNode.select.from.alias}".${x.relation.childId})` }, // might need any order by here as well
+                  alias: rowNumberName,
+                }],
+                pagination: undefined,
+              }
+            },
+          };
           const groupedCollection: SQL.SelectNode = {
             ...collection,
+            ...paginatedFrom,
             groupBy: {
               kind: 'GroupByNode',
               column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
@@ -546,6 +605,21 @@ export namespace Field {
             columns: [
               SQL.simpleColumnNode(collectionTable, x.relation.childId, groupColumName),
               ...collection.columns,
+            ],
+            conditions: [
+              ...collection.conditions,
+              ...fromSelectNode.select.pagination?.limit === undefined ? [] : [{
+                kind: 'WhereNode' as const,
+                column: rowNumberColumn,
+                op: '<=' as const,
+                value: fromSelectNode.select.pagination?.limit! + (fromSelectNode.select.pagination?.offset ?? 0),
+              }],
+              ...fromSelectNode.select.pagination?.offset === undefined ? [] : [{
+                kind: 'WhereNode' as const,
+                column: rowNumberColumn,
+                op: '>' as const,
+                value: fromSelectNode.select.pagination?.offset!,
+              }],
             ],
           };
           return {
@@ -627,6 +701,7 @@ export namespace SQL {
     groupBy?: GroupByNode;
     conditions: WhereNode[];
     sorts: SortNode[];
+    pagination?: PaginationNode;
   }
 
   export interface ColumnNode {
@@ -676,7 +751,7 @@ export namespace SQL {
   export interface FromTableNode {
     kind: "FromTableNode";
     table: string;
-    alias?: string;
+    alias: string;
   }
 
   export interface FromSelectNode {
@@ -718,7 +793,7 @@ export namespace SQL {
     kind: "WhereNode";
     column: ColumnNode;
     op: WhereOp;
-    value: string;
+    value: any;
   }
 
   export type WhereOp =
@@ -743,6 +818,12 @@ export namespace SQL {
     | 'asc'
     | 'desc'
 
+  export interface PaginationNode {
+    kind: "PaginationNode";
+    limit?: number;
+    offset?: number;
+  }
+
   export function generate(node: SelectNode): Prisma.Sql {
 
     // console.log('-----------------------------------');
@@ -755,9 +836,10 @@ select \
 ${n.columns.length === 0 ? Prisma.raw('*') : Prisma.join(n.columns.map(generateColumnNode), ',')} \
 from ${generateFromNode(n.from)}\
 ${n.joins.length === 0 ? Prisma.empty : Prisma.join(n.joins.map(generateJoinNode))}\
-${n.groupBy === undefined ? Prisma.empty : generateGroupByNode(n.groupBy)}\
 ${n.conditions.length === 0 ? Prisma.empty : Prisma.join(n.conditions.map(generateWhereNode), ' and ', ' where ')}\
+${n.groupBy === undefined ? Prisma.empty : generateGroupByNode(n.groupBy)}\
 ${n.sorts.length === 0 ? Prisma.empty : Prisma.join(n.sorts.map(generateSortNode), ',', ' order by ')}\
+${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
 `;
     };
 
@@ -830,11 +912,31 @@ ${n.sorts.length === 0 ? Prisma.empty : Prisma.join(n.sorts.map(generateSortNode
     };
 
     const generateWhereNode = (n: WhereNode): Prisma.Sql => {
-      return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)} ${n.value === 'null' ? Prisma.raw('null') : n.value}`;
+      let value: Prisma.Sql | undefined = undefined;
+
+      if (Array.isArray(n.value)) {
+        if (n.value.length > 0)
+          value = Prisma.sql`(${Prisma.join(n.value.map(x => Prisma.sql`${x}`), ',')})`;
+      }
+      else if (n.value === 'null')
+        value = Prisma.raw('null');
+      else
+        value = Prisma.sql`${n.value}`;
+
+      if (!value)
+        return Prisma.empty;
+
+      return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)} ${value}`;
     };
 
     const generateSortNode = (n: SortNode): Prisma.Sql => {
       return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)}`;
+    };
+
+    const generatePaginationNode = (n: PaginationNode): Prisma.Sql => {
+      const limit = !n.limit ? Prisma.empty : Prisma.raw(` limit ${n.limit}`);
+      const offset = !n.offset ? Prisma.empty : Prisma.raw(` offset ${n.offset}`);
+      return Prisma.sql`${offset} ${limit}`;
     };
 
     return generateSelectNode(node);
