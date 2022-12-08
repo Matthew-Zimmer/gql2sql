@@ -32,7 +32,7 @@ export interface SummaryHandlerExtension {
 }
 
 interface Extensions {
-  [relationExtensionName]: RelationExtension;
+  [relationExtensionName]: [RelationExtension] | [RelationExtension, RelationExtension];
   [aliasExtensionName]: AliasExtension;
   [tableExtensionName]: TableExtension;
   [summaryHandlerExtensionName]: SummaryHandlerExtension;
@@ -148,14 +148,16 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           const { extensions, type: fieldType } = field;
 
           if (relationExtensionName in extensions) {
-            const relation = extensions[relationExtensionName] as RelationExtension;
+            const relation = getExtension(extensions, relationExtensionName, null as any);
             relations.push({
               kind: 'RelationField',
-              relation: {
+              relation: relation.length === 1 ? {
                 kind: 'DirectRelation',
-                parentId: relation.parentId,
-                childId: relation.childId,
-                to: relation.to,
+                ...relation[0]
+              } : {
+                kind: 'JunctionRelation',
+                toJunction: { kind: 'DirectRelation', ...relation[0] },
+                fromJunction: { kind: 'DirectRelation', ...relation[1] },
               },
               collection: createCollection(selection, reduceToObjectType(fieldType)),
             });
@@ -637,29 +639,29 @@ export namespace Field {
             ...collection,
             groupBy: {
               kind: 'GroupByNode',
-              column: SQL.simpleColumnNode(joinTable, groupColumName),
+              column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
             },
             columns: [
-              SQL.simpleColumnNode(collectionTable, x.relation.fromJunction.childId, groupColumName),
+              SQL.simpleColumnNode(junctionTable, x.relation.toJunction.childId, groupColumName),
               ...collection.columns,
             ],
+            joins: [
+              ...collection.joins,
+              {
+                kind: 'DirectJoinNode',
+                op: 'inner',
+                parentId: SQL.simpleColumnNode(junctionTable, x.relation.fromJunction.parentId),
+                childId: SQL.simpleColumnNode(collectionTable, x.relation.fromJunction.childId),
+                from: { kind: 'FromTableNode', table: x.relation.toJunction.to, alias: junctionTable },
+              }
+            ]
           };
           return {
-            kind: 'JunctionJoinNode',
-            toJunction: {
-              kind: 'DirectJoinNode',
-              op: 'left',
-              parentId: SQL.simpleColumnNode(collectionTable, x.relation.toJunction.parentId),
-              childId: SQL.simpleColumnNode(junctionTable, x.relation.toJunction.childId),
-              from: { kind: 'FromTableNode', table: x.relation.toJunction.to, alias: junctionTable },
-            },
-            fromJunction: {
-              kind: 'DirectJoinNode',
-              op: 'left',
-              parentId: SQL.simpleColumnNode(junctionTable, x.relation.fromJunction.parentId),
-              childId: SQL.simpleColumnNode(joinTable, groupColumName),
-              from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
-            },
+            kind: 'DirectJoinNode',
+            op: 'left',
+            parentId: SQL.simpleColumnNode(table, x.relation.toJunction.parentId),
+            childId: SQL.simpleColumnNode(joinTable, groupColumName),
+            from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
           };
         }
       }
@@ -760,11 +762,7 @@ export namespace SQL {
     alias: string;
   }
 
-  export type JoinNode =
-    | DirectJoinNode
-    | JunctionJoinNode
-
-  export interface DirectJoinNode {
+  export interface JoinNode {
     kind: "DirectJoinNode";
     op: JoinOp;
     from: FromNode;
@@ -777,12 +775,6 @@ export namespace SQL {
     | 'left'
     | 'right'
     | 'outer'
-
-  export interface JunctionJoinNode {
-    kind: "JunctionJoinNode";
-    toJunction: DirectJoinNode;
-    fromJunction: DirectJoinNode;
-  }
 
   export interface GroupByNode {
     kind: "GroupByNode";
@@ -893,18 +885,7 @@ ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
     };
 
     const generateJoinNode = (n: JoinNode): Prisma.Sql => {
-      switch (n.kind) {
-        case 'DirectJoinNode': return generateDirectJoinNode(n);
-        case 'JunctionJoinNode': return generateJunctionJoinNode(n);
-      }
-    };
-
-    const generateDirectJoinNode = (n: DirectJoinNode): Prisma.Sql => {
       return Prisma.sql` ${Prisma.raw(n.op)} join ${generateFromNode(n.from)} on ${generateColumnNode(n.parentId)} = ${generateColumnNode(n.childId)}`;
-    };
-
-    const generateJunctionJoinNode = (n: JunctionJoinNode): Prisma.Sql => {
-      return Prisma.sql`${generateDirectJoinNode(n.toJunction)}${generateDirectJoinNode(n.fromJunction)}`;
     };
 
     const generateGroupByNode = (n: GroupByNode): Prisma.Sql => {

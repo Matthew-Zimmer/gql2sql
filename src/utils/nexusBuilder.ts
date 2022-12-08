@@ -1,6 +1,6 @@
 import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
 import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
-import { aliasExtensionName, Extension, Field, prepareSQLForQuery, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName } from '../utils';
+import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from '../utils';
 
 class CollectionTypeBlock {
   private fields: NexusOutputFieldConfigWithName<any, any>[] = [];
@@ -236,8 +236,8 @@ export const aliasExtension = (name: string): Extension<typeof aliasExtensionNam
 export const relationExtension = (...relations: { to: string, parentId: string, childId: string }[]): Extension<typeof relationExtensionName> => {
   switch (relations.length) {
     case 1:
-      return { [relationExtensionName]: relations[0] };
     case 2:
+      return { [relationExtensionName]: relations as [RelationExtension] | [RelationExtension, RelationExtension] };
     default:
       throw new Error(`Relations can only be a single or double relation`);
   }
