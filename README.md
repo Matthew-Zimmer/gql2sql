@@ -23,6 +23,6 @@ npm run dev
 1. [x] Junction tables need to be tested (need to add pagination to junction tables)
 2. Summary filters and sorts need to be applied
 3. [x] limit and offset style pagination (maybe only half done see comments in code about maybe needing more sorting)
-4. Fix nulls for details having no data
-5. respect skip directives for data selection
+4. [x] Fix nulls for details having no data
+5. [x] respect skip directives for data selection
 

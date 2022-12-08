@@ -225,6 +225,16 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return offset === undefined && limit === undefined ? undefined : { kind: 'PaginationField', limit, offset };
   };
 
+  const isSkipped = (x: FieldNode): boolean => {
+    const directives = x.directives ?? [];
+    const skipDirective = directives.find(x => x.name.value === 'skip');
+    if (!skipDirective) return false;
+    const args = skipDirective.arguments ?? [];
+    const ifArg = args.find(x => x.name.value === 'if');
+    if (!ifArg) return false;
+    return ifArg.value.kind === Kind.BOOLEAN && ifArg.value.value;
+  };
+
   const createCollection = (field: FieldNode, type: GraphQLObjectType): Field.CollectionField => {
     const [details, summaries, relations] = visitCollectionSelections(field.selectionSet?.selections ?? [], type);
 
@@ -235,10 +245,11 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     const tableExtension = extensions[tableExtensionName] as TableExtension;
 
     const pagination = paginationArgs(field.arguments ?? []);
+    const skip = isSkipped(field);
 
     return {
       kind: 'Collection',
-      skip: false,
+      skip,
       name: field.name.value,
       table: tableExtension.name,
       details,
@@ -252,11 +263,13 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     const name = x.name.value;
     const { extensions } = type.getFields()[name];
     const [sorts, conditions] = sortAndFilterConditionsFromArgs(x.arguments ?? []);
+    const skip = isSkipped(x);
+
     return {
       kind: 'DetailField',
       alias: name,
       name: aliasExtensionName in extensions ? (extensions[aliasExtensionName] as AliasExtension).name : name,
-      skip: false,
+      skip,
       conditions,
       sorts,
     };
@@ -434,7 +447,7 @@ export namespace Field {
 
       const fullDetails = createDetailsAggExpression([
         ...details,
-        ...x.relations.flatMap<SQL.ExpressionNode>(r => [
+        ...x.relations.filter(x => !x.collection.skip).flatMap<SQL.ExpressionNode>(r => [
           { kind: 'StringExpressionNode', value: r.collection.name },
           { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: table }, right: { kind: 'IdentifierExpressionNode', name: r.collection.name } }
         ]),
@@ -442,7 +455,7 @@ export namespace Field {
 
       const node: SQL.SelectNode = {
         kind: 'SelectNode',
-        columns: [{
+        columns: x.skip ? [] : [{
           kind: 'ColumnNode',
           expr: {
             kind: 'ApplicationExpressionNode',
@@ -501,10 +514,12 @@ export namespace Field {
       const args: SQL.ExpressionNode[] = [];
 
       for (const f of x) {
-        const [cols, wNodes, sNodes] = generateDetailField(f, rawTable, table);
-        args.push(...cols);
-        whereNodes.push(...wNodes);
-        sortNodes.push(...sNodes);
+        if (!f.skip) {
+          const [cols, wNodes, sNodes] = generateDetailField(f, rawTable, table);
+          args.push(...cols);
+          whereNodes.push(...wNodes);
+          sortNodes.push(...sNodes);
+        }
       }
 
       return [args, whereNodes, sortNodes];
