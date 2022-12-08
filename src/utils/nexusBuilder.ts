@@ -82,6 +82,7 @@ class CollectionTypeBlock {
         offset: intArg(),
         ...config?.args,
       },
+      resolve: x => x[name] ?? {},
     });
   }
 }
@@ -110,9 +111,11 @@ export const collectionType = (config: CollectionTypeConfig) => {
       name: collectionName,
       definition(t) {
         // @ts-expect-error
-        t.field('summary', { type: summaryName });
-        // @ts-expect-error
-        t.list.field('details', { type: config.name });
+        t.field('summary', { type: summaryName, resolve: x => x.summary ?? {} });
+        t.list.field('details', {
+          // @ts-expect-error
+          type: config.name, resolve: (x) => x.details ?? []
+        });
       },
       description: ``,
     }),
@@ -120,7 +123,7 @@ export const collectionType = (config: CollectionTypeConfig) => {
     objectType({
       name: summaryName,
       definition(t) {
-        t.field('total', { type: ArrayAggregation, extensions: { [summaryHandlerExtensionName]: totalSummaryHandler } });
+        t.field('total', { type: ArrayAggregation, extensions: { [summaryHandlerExtensionName]: totalSummaryHandler }, resolve: x => x.total ?? {} });
       },
       description: ``,
     }),
@@ -156,7 +159,7 @@ export const collectionType = (config: CollectionTypeConfig) => {
             const query = prepareSQLForQuery(info);
             console.log(query.sql);
             const data = await ctx.prisma.$queryRaw<{ root: any }[]>(query);
-            return data[0].root;
+            return data[0].root ?? {};
           },
           args: {
             limit: intArg(),
@@ -269,14 +272,16 @@ const totalSummaryHandler: SummaryHandlerExtension = {
 export const ArrayAggregation = objectType({
   name: 'ArrayAggregation',
   definition(t) {
-    t.int('count');
+    // @ts-expect-error
+    t.nonNull.int('count', { resolve: x => x.count ?? 0 });
   },
 });
 
 export const StringAggregation = objectType({
   name: 'StringAggregation',
   definition(t) {
-    t.int('count');
+    // @ts-expect-error
+    t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.string('max');
     t.string('min');
   },
@@ -285,7 +290,8 @@ export const StringAggregation = objectType({
 export const IntegerAggregation = objectType({
   name: 'IntegerAggregation',
   definition(t) {
-    t.int('count');
+    // @ts-expect-error
+    t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.int('max');
     t.int('min');
     t.int('sum');
@@ -296,7 +302,8 @@ export const IntegerAggregation = objectType({
 export const FloatAggregation = objectType({
   name: 'FloatAggregation',
   definition(t) {
-    t.int('count');
+    // @ts-expect-error
+    t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.float('max');
     t.float('min');
     t.float('sum');

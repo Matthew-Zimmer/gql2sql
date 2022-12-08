@@ -658,7 +658,7 @@ export namespace Field {
           };
           return {
             kind: 'DirectJoinNode',
-            op: 'left',
+            op: info.hasFilters ? 'inner' : 'left',
             parentId: SQL.simpleColumnNode(table, x.relation.toJunction.parentId),
             childId: SQL.simpleColumnNode(joinTable, groupColumName),
             from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },

@@ -29,51 +29,34 @@ export interface NexusGenScalars {
 }
 
 export interface NexusGenObjects {
-  ArrayAggregation: { // root type
-    count?: number | null; // Int
-  }
+  ArrayAggregation: {};
   Author: { // root type
     firstName?: string | null; // String
     id?: string | null; // ID
     lastName?: string | null; // String
-    posts?: NexusGenRootTypes['Posts'] | null; // Posts
   }
-  AuthorSummary: { // root type
-    total?: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
-  }
-  Authors: { // root type
-    details?: Array<NexusGenRootTypes['Author'] | null> | null; // [Author]
-    summary?: NexusGenRootTypes['AuthorSummary'] | null; // AuthorSummary
-  }
+  AuthorSummary: {};
+  Authors: {};
   FloatAggregation: { // root type
     avg?: number | null; // Float
-    count?: number | null; // Int
     max?: number | null; // Float
     min?: number | null; // Float
     sum?: number | null; // Float
   }
   IntegerAggregation: { // root type
     avg?: number | null; // Float
-    count?: number | null; // Int
     max?: number | null; // Int
     min?: number | null; // Int
     sum?: number | null; // Int
   }
   Post: { // root type
-    authors?: NexusGenRootTypes['Authors'] | null; // Authors
     id?: string | null; // ID
     title?: string | null; // String
   }
-  PostSummary: { // root type
-    total?: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
-  }
-  Posts: { // root type
-    details?: Array<NexusGenRootTypes['Post'] | null> | null; // [Post]
-    summary?: NexusGenRootTypes['PostSummary'] | null; // PostSummary
-  }
+  PostSummary: {};
+  Posts: {};
   Query: {};
   StringAggregation: { // root type
-    count?: number | null; // Int
     max?: string | null; // String
     min?: string | null; // String
   }
@@ -91,7 +74,7 @@ export type NexusGenAllTypes = NexusGenRootTypes & NexusGenScalars & NexusGenEnu
 
 export interface NexusGenFieldTypes {
   ArrayAggregation: { // field return type
-    count: number | null; // Int
+    count: number; // Int!
   }
   Author: { // field return type
     firstName: string | null; // String
@@ -108,14 +91,14 @@ export interface NexusGenFieldTypes {
   }
   FloatAggregation: { // field return type
     avg: number | null; // Float
-    count: number | null; // Int
+    count: number; // Int!
     max: number | null; // Float
     min: number | null; // Float
     sum: number | null; // Float
   }
   IntegerAggregation: { // field return type
     avg: number | null; // Float
-    count: number | null; // Int
+    count: number; // Int!
     max: number | null; // Int
     min: number | null; // Int
     sum: number | null; // Int
@@ -137,7 +120,7 @@ export interface NexusGenFieldTypes {
     posts: NexusGenRootTypes['Posts'] | null; // Posts
   }
   StringAggregation: { // field return type
-    count: number | null; // Int
+    count: number; // Int!
     max: string | null; // String
     min: string | null; // String
   }
