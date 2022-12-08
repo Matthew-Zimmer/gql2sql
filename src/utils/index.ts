@@ -514,18 +514,16 @@ export namespace Field {
       const args: SQL.ExpressionNode[] = [];
 
       for (const f of x) {
-        if (!f.skip) {
-          const [cols, wNodes, sNodes] = generateDetailField(f, rawTable, table);
-          args.push(...cols);
-          whereNodes.push(...wNodes);
-          sortNodes.push(...sNodes);
-        }
+        const [cols, wNodes, sNodes] = generateDetailField(f, rawTable, table);
+        args.push(...cols);
+        whereNodes.push(...wNodes);
+        sortNodes.push(...sNodes);
       }
 
       return [args, whereNodes, sortNodes];
     };
 
-    const generateDetailField = (x: DetailField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
+    const generateDetailField = (x: DetailField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
       const subColumnExpr = SQL.simpleColumnNode(rawTable, x.name).expr;
       const selectColumnExpr: SQL.ExpressionNode = x.raw ? { kind: 'RawExpressionNode', value: x.name } : SQL.simpleColumnNode(table, x.name).expr;
 
@@ -533,7 +531,7 @@ export namespace Field {
       const sortNodes = x.sorts.map(c => generateFieldSortCondition(c, subColumnExpr));
 
       return [
-        [
+        x.skip ? [] : [
           { kind: 'StringExpressionNode', value: x.alias },
           selectColumnExpr,
         ],
@@ -557,11 +555,11 @@ export namespace Field {
       return [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }, whereNodes, sortNodes];
     };
 
-    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode], SQL.WhereNode[], SQL.SortNode[]] => {
+    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
       const [col, whereNodes, sortNodes] = generateDetailField(x.field, rawTable, table);
 
       return [
-        [
+        col.length === 0 ? [] : [
           col[0],
           {
             kind: 'ApplicationExpressionNode',
