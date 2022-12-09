@@ -1,6 +1,5 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from './prisma';
 import { ArgumentNode, BooleanValueNode, FieldNode, FloatValueNode, GraphQLField, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLResolveInfo, GraphQLType, IntValueNode, isListType, isNonNullType, isObjectType, Kind, ListValueNode, NullValueNode, SelectionNode, StringValueNode, ValueNode, VariableNode } from 'graphql';
-import { inspect } from 'util';
 
 export const prepareSQLForQuery = (info: GraphQLResolveInfo): Prisma.Sql => {
   const collection = generateFieldFromQuery(info);

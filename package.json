@@ -5,7 +5,6 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "ts-node-dev --transpile-only --no-notify src/index.ts",
     "build": "tsc"
   },
   "keywords": [

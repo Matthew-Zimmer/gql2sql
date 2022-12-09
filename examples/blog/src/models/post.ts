@@ -1,4 +1,4 @@
-import { collectionType, relationExtension } from '../utils/nexusBuilder';
+import { collectionType } from 'gql2sql';
 
 export const PostCollection = collectionType({
   name: 'Post',
