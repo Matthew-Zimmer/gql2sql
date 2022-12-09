@@ -4,4 +4,4 @@ node_modules
 README.md
 .vscode
 src
-tsconfig.ts
+tsconfig.json
