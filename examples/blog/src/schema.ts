@@ -1,11 +1,10 @@
 import { makeSchema } from 'nexus';
 import { join } from 'path';
 import * as models from './models';
-import * as queries from './queries';
-import * as utilTypes from './utils/nexusBuilder';
+import { gql2sqlTypes } from 'gql2sql';
 
 export const schema = makeSchema({
-  types: [models, queries, utilTypes],
+  types: [models, gql2sqlTypes],
   outputs: {
     typegen: join(__dirname, 'nexus-typegen.ts'),
   },

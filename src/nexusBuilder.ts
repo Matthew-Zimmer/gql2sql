@@ -1,6 +1,6 @@
 import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
 import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
-import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from '../utils';
+import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from './compiler';
 
 class CollectionTypeBlock {
   private fields: NexusOutputFieldConfigWithName<any, any>[] = [];
@@ -75,7 +75,7 @@ class CollectionTypeBlock {
   collection(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
     this.field(name, {
       ...config,
-      // @ts-expect-error
+      // @ts-ignore
       type: `${name[0].toUpperCase()}${name.slice(1)}`,
       args: {
         limit: intArg(),
@@ -102,7 +102,7 @@ export const collectionType = (config: CollectionTypeConfig) => {
 
   const builder = new CollectionTypeBlock();
   config.definition(builder);
-  // @ts-expect-error
+  // @ts-ignore
   const fields = builder.fields;
 
   return [
@@ -110,10 +110,10 @@ export const collectionType = (config: CollectionTypeConfig) => {
     objectType({
       name: collectionName,
       definition(t) {
-        // @ts-expect-error
+        // @ts-ignore
         t.field('summary', { type: summaryName, resolve: x => x.summary ?? {} });
         t.list.field('details', {
-          // @ts-expect-error
+          // @ts-ignore
           type: config.name, resolve: (x) => x.details ?? []
         });
       },
@@ -153,12 +153,12 @@ export const collectionType = (config: CollectionTypeConfig) => {
       type: 'Query',
       definition(t) {
         t.field(`${collectionName[0].toLowerCase()}${collectionName.slice(1)}`, {
-          // @ts-expect-error
+          // @ts-ignore
           type: collectionName,
           async resolve(_root, args, ctx, info) {
             const query = prepareSQLForQuery(info);
-            console.log(query.sql);
-            const data = await ctx.prisma.$queryRaw<{ root: any }[]>(query);
+            // console.log(query.sql);
+            const data = await ctx.prisma.$queryRaw(query);
             return data[0].root ?? {};
           },
           args: {
@@ -272,7 +272,7 @@ const totalSummaryHandler: SummaryHandlerExtension = {
 export const ArrayAggregation = objectType({
   name: 'ArrayAggregation',
   definition(t) {
-    // @ts-expect-error
+    // @ts-ignore
     t.nonNull.int('count', { resolve: x => x.count ?? 0 });
   },
 });
@@ -280,7 +280,7 @@ export const ArrayAggregation = objectType({
 export const StringAggregation = objectType({
   name: 'StringAggregation',
   definition(t) {
-    // @ts-expect-error
+    // @ts-ignore
     t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.string('max');
     t.string('min');
@@ -290,7 +290,7 @@ export const StringAggregation = objectType({
 export const IntegerAggregation = objectType({
   name: 'IntegerAggregation',
   definition(t) {
-    // @ts-expect-error
+    // @ts-ignore
     t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.int('max');
     t.int('min');
@@ -302,7 +302,7 @@ export const IntegerAggregation = objectType({
 export const FloatAggregation = objectType({
   name: 'FloatAggregation',
   definition(t) {
-    // @ts-expect-error
+    // @ts-ignore
     t.nonNull.int('count', { resolve: x => x.count ?? 0 });
     t.float('max');
     t.float('min');
@@ -310,3 +310,11 @@ export const FloatAggregation = objectType({
     t.float('avg');
   },
 });
+
+export const gql2sqlTypes = [
+  sortOpEnum,
+  ArrayAggregation,
+  StringAggregation,
+  IntegerAggregation,
+  FloatAggregation,
+];
