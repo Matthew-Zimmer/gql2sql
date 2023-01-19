@@ -1,5 +1,5 @@
 import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
-import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
+import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusListDef, NexusNonNullDef, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
 import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from './compiler';
 
 interface CollectionTypeBlockOptions extends Omit<FieldOutConfig<any, any>, 'type'> {
@@ -175,7 +175,10 @@ export const collectionType = (config: CollectionTypeConfig) => {
   ];
 }
 
-const argsForType = (x: string): ArgsRecord | undefined => {
+const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>): ArgsRecord | undefined => {
+  if (typeof x === "object") {
+    return argsForType(x.ofNexusType);
+  }
   switch (x) {
     case 'Int':
       return {

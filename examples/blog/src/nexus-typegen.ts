@@ -33,7 +33,7 @@ export interface NexusGenObjects {
   Author: { // root type
     firstName?: string | null; // String
     id?: string | null; // ID
-    lastName?: string | null; // String
+    lastName: string; // String!
   }
   AuthorSummary: {};
   Authors: {};
@@ -79,7 +79,7 @@ export interface NexusGenFieldTypes {
   Author: { // field return type
     firstName: string | null; // String
     id: string | null; // ID
-    lastName: string | null; // String
+    lastName: string; // String!
     posts: NexusGenRootTypes['Posts'] | null; // Posts
   }
   AuthorSummary: { // field return type

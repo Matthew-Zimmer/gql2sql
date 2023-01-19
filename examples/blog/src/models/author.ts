@@ -9,7 +9,7 @@ export const AuthorCollection = collectionType({
       string('firstName');
 
     t.alias('last_name').
-      string('lastName');
+      nonNull.string('lastName');
 
     t.relation('id', 'AuthorToPost', 'author_id').
       relation('post_id', 'Post', 'id').

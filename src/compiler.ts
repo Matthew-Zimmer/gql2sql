@@ -89,6 +89,7 @@ const toSqlLike = (x: any, nested?: boolean): any => {
     case 'boolean':
     case 'string':
     case 'number':
+    case 'undefined':
       return x;
     case 'object':
       if (x === null)
@@ -107,7 +108,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return info.variableValues[name];
   }
 
-  const lookupVariableToSqlLike = (name: string): string => {
+  const lookupVariableToSqlLike = (name: string): string | undefined => {
     return toSqlLike(lookupVariable(name));
   }
 
