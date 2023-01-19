@@ -144,6 +144,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
         case Kind.FIELD: {
           // we still need to look at the arguments and directives
           const name = selection.name.value;
+          if (name === "__typename")
+            break;
           const field = type.getFields()[name];
           const { extensions, type: fieldType } = field;
 
