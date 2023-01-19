@@ -2,6 +2,10 @@ import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
 import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
 import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from './compiler';
 
+interface CollectionTypeBlockOptions extends Omit<FieldOutConfig<any, any>, 'type'> {
+  typeName?: string;
+}
+
 class CollectionTypeBlock {
   private fields: NexusOutputFieldConfigWithName<any, any>[] = [];
   private aliasName?: string;
@@ -72,11 +76,11 @@ class CollectionTypeBlock {
     return this;
   }
 
-  collection(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
+  collection(name: string, config?: CollectionTypeBlockOptions) {
     this.field(name, {
       ...config,
       // @ts-ignore
-      type: `${name[0].toUpperCase()}${name.slice(1)}`,
+      type: config?.typeName ?? `${name[0].toUpperCase()}${name.slice(1)}`,
       args: {
         limit: intArg(),
         offset: intArg(),
