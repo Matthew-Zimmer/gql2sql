@@ -1,18 +1,41 @@
-import { arg, enumType, intArg, objectType, stringArg } from 'nexus'
-import { ArgsRecord, booleanArg, extendType, FieldOutConfig, floatArg, idArg, list, NexusListDef, NexusNonNullDef, NexusOutputFieldConfigWithName, nonNull } from 'nexus/dist/core';
-import { aliasExtensionName, Extension, Field, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, TableExtension, tableExtensionName } from './compiler';
+import { arg, enumType, intArg, objectType, stringArg, interfaceType, unionType, extendType, booleanArg, floatArg, idArg, list, nonNull } from 'nexus';
+import { ArgsRecord, FieldOutConfig, NexusListDef, NexusNonNullDef, NexusOutputFieldConfigWithName, TypeDef } from 'nexus/dist/core';
+import { aliasExtensionName, Extension, Field, interfaceExtensionName, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName, variantExtensionName } from './compiler';
 
 interface CollectionTypeBlockOptions extends Omit<FieldOutConfig<any, any>, 'type'> {
   typeName?: string;
 }
 
+interface VariantTypeOptions {
+  name: string;
+  definition(t: CollectionTypeBlock): void;
+  tableName?: string;
+}
+
+interface Relation {
+  parentId: string, to: string, childId: string
+}
+
+type TypeModifier =
+  | "nonNull"
+  | "list"
+
+interface FullVariantTypeOptions extends VariantTypeOptions {
+  relations: Relation[];
+}
+
 class CollectionTypeBlock {
   private fields: NexusOutputFieldConfigWithName<any, any>[] = [];
   private aliasName?: string;
-  private relations: { parentId: string, to: string, childId: string }[] = [];
-  private typeMods: ('nonNull' | 'list')[] = [];
+  private relations: Relation[] = [];
+  private typeMods: TypeModifier[] = [];
+  private variants: FullVariantTypeOptions[] = [];
+  private isVariantTag: boolean = false;
+  private variantTag?: string;
 
   field(name: string, x: FieldOutConfig<any, any>) {
+    if (this.isVariantTag)
+      this.variantTag = this.aliasName ?? name;
     this.fields.push({
       name,
       ...x,
@@ -34,6 +57,7 @@ class CollectionTypeBlock {
     this.typeMods = [];
     this.aliasName = undefined;
     this.relations = [];
+    this.isVariantTag = false;
   }
 
   int(name: string, config?: Omit<FieldOutConfig<any, any>, 'type'>) {
@@ -71,6 +95,11 @@ class CollectionTypeBlock {
     return this;
   }
 
+  get tag() {
+    this.isVariantTag = true;
+    return this;
+  }
+
   relation(parentId: string, to: string, childId: string) {
     this.relations.push({ parentId, to, childId });
     return this;
@@ -89,6 +118,14 @@ class CollectionTypeBlock {
       resolve: x => x[name] ?? {},
     });
   }
+
+  variant(config: VariantTypeOptions) {
+    this.variants.push({
+      ...config,
+      relations: this.relations,
+    });
+    this.relations = [];
+  }
 }
 
 export interface CollectionTypeConfig {
@@ -100,15 +137,77 @@ export interface CollectionTypeConfig {
   pluralForm?: string;
 }
 
-export const collectionType = (config: CollectionTypeConfig) => {
-  const collectionName = config.pluralForm ?? `${config.name}s`;
-  const summaryName = `${config.name}Summary`;
+type NexusField = NexusOutputFieldConfigWithName<any, any>;
 
-  const builder = new CollectionTypeBlock();
-  config.definition(builder);
-  // @ts-ignore
-  const fields = builder.fields;
+function addImplicitArgs(field: NexusField): NexusField {
+  return {
+    ...field,
+    args: {
+      ...argsForType(field.type as string),
+      ...field.args,
+    },
+  };
+}
 
+function createSingularCollectionDetailsType(
+  fields: NexusOutputFieldConfigWithName<any, any>[],
+  config: CollectionTypeConfig
+): TypeDef[] {
+  return [
+    objectType({
+      name: config.name,
+      definition(t) {
+        fields.forEach(f => t.field(addImplicitArgs(f)));
+      },
+      description: config.description,
+      extensions: {
+        ...tableExtension(config.tableName ?? config.name),
+      }
+    }),
+  ];
+}
+
+function createUnionCollectionDetailsType(
+  fields: NexusOutputFieldConfigWithName<any, any>[],
+  variants: FullVariantTypeOptions[],
+  variantTag: string,
+  config: CollectionTypeConfig
+): TypeDef[] {
+  return [
+    ...variants.map(v => objectType({
+      name: v.name,
+      definition(t) {
+        const builder = new CollectionTypeBlock();
+        v.definition(builder);
+        // @ts-expect-error
+        builder.fields.forEach(f => t.field(addImplicitArgs(f)));
+        t.implements(config.name)
+      },
+      extensions: {
+        ...v.relations.length === 0 ? undefined : relationExtension(...v.relations),
+        ...variantExtension(variantTag, v.name),
+      }
+    })),
+    // details
+    interfaceType({
+      name: config.name,
+      resolveType: (x) => x[variantTag],
+      definition(t) {
+        fields.forEach(f => t.field(addImplicitArgs(f)));
+      },
+      extensions: {
+        ...tableExtension(config.tableName ?? config.name),
+        ...interfaceExtension(variantTag),
+      }
+    }),
+  ];
+}
+
+function createCollectionTypes(
+  collectionName: string,
+  summaryName: string,
+  config: CollectionTypeBlockOptions,
+) {
   return [
     // collection
     objectType({
@@ -131,28 +230,6 @@ export const collectionType = (config: CollectionTypeConfig) => {
       },
       description: ``,
     }),
-    // details
-    objectType({
-      name: config.name,
-      definition(t) {
-        fields.forEach(f => {
-          t.field({
-            ...f,
-            args: {
-              ...argsForType(f.type as string),
-              ...f.args,
-            },
-            extensions: {
-              ...f.extensions,
-            },
-          });
-        });
-      },
-      description: config.description,
-      extensions: {
-        ...tableExtension(config.tableName ?? config.name),
-      }
-    }),
     extendType({
       type: 'Query',
       definition(t) {
@@ -172,6 +249,33 @@ export const collectionType = (config: CollectionTypeConfig) => {
         })
       },
     }),
+  ];
+}
+
+export const collectionType = (config: CollectionTypeConfig) => {
+  const collectionName = config.pluralForm ?? `${config.name}s`;
+  const summaryName = `${config.name}Summary`;
+
+  const builder = new CollectionTypeBlock();
+  config.definition(builder);
+  // @ts-ignore
+  const fields = builder.fields;
+  // @ts-ignore
+  const variants = builder.variants;
+  // @ts-ignore
+  const variantTag = builder.variantTag;
+
+  const isVariant = variants.length > 0;
+
+  if (isVariant && variantTag === undefined)
+    throw new Error(`Error: You added a variant field without marking another field as the tag to use for the variant`);
+
+  return [
+    ...createCollectionTypes(collectionName, summaryName, config),
+    ...(isVariant ?
+      createUnionCollectionDetailsType(fields, variants, variantTag!, config) :
+      createSingularCollectionDetailsType(fields, config)
+    ),
   ];
 }
 
@@ -243,7 +347,7 @@ export const aliasExtension = (name: string): Extension<typeof aliasExtensionNam
   return { [aliasExtensionName]: { name } };
 }
 
-export const relationExtension = (...relations: { to: string, parentId: string, childId: string }[]): Extension<typeof relationExtensionName> => {
+export const relationExtension = (...relations: Relation[]): Extension<typeof relationExtensionName> => {
   switch (relations.length) {
     case 1:
     case 2:
@@ -251,6 +355,14 @@ export const relationExtension = (...relations: { to: string, parentId: string, 
     default:
       throw new Error(`Relations can only be a single or double relation`);
   }
+}
+
+export const variantExtension = (column: string, value: string): Extension<typeof variantExtensionName> => {
+  return { [variantExtensionName]: { tag: { column, value } } };
+}
+
+export const interfaceExtension = (column: string): Extension<typeof interfaceExtensionName> => {
+  return { [interfaceExtensionName]: { tagColumn: column } };
 }
 
 export const sortOpEnum = enumType({

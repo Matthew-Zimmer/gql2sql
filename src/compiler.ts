@@ -1,5 +1,5 @@
 import { Prisma } from './prisma';
-import { ArgumentNode, BooleanValueNode, FieldNode, FloatValueNode, GraphQLField, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLResolveInfo, GraphQLType, IntValueNode, isListType, isNonNullType, isObjectType, Kind, ListValueNode, NullValueNode, SelectionNode, StringValueNode, ValueNode, VariableNode } from 'graphql';
+import { ArgumentNode, BooleanValueNode, FieldNode, FloatValueNode, GraphQLField, GraphQLInterfaceType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLResolveInfo, GraphQLType, IntValueNode, isInterfaceType, isListType, isNonNullType, isObjectType, Kind, ListValueNode, NullValueNode, SelectionNode, StringValueNode, ValueNode, VariableNode } from 'graphql';
 
 export const prepareSQLForQuery = (info: GraphQLResolveInfo): Prisma.Sql => {
   const collection = generateFieldFromQuery(info);
@@ -25,6 +25,21 @@ export interface TableExtension {
   name: string;
 }
 
+export interface VariantTag {
+  column: string;
+  value: string;
+}
+
+export const variantExtensionName = 'variant';
+export interface VariantExtension {
+  tag: VariantTag;
+}
+
+export const interfaceExtensionName = 'interface';
+export interface InterfaceExtension {
+  tagColumn: string;
+}
+
 export const summaryHandlerExtensionName = 'summaryHandler';
 export interface SummaryHandlerExtension {
   handler: (selection: FieldNode, subSelection: FieldNode, type: GraphQLObjectType) => Field.SummaryField;
@@ -35,18 +50,27 @@ interface Extensions {
   [aliasExtensionName]: AliasExtension;
   [tableExtensionName]: TableExtension;
   [summaryHandlerExtensionName]: SummaryHandlerExtension;
+  [variantExtensionName]: VariantExtension;
+  [interfaceExtensionName]: InterfaceExtension;
 }
 
 export type Extension<K extends keyof Extensions> = Record<K, Extensions[K]>;
 
-const getExtension = <K extends keyof Extensions>(extensions: any, name: K, defaultValue: Extensions[K]): Extensions[K] => {
-  return name in extensions ? extensions[name] : defaultValue;
+const NEVER = (): never => { throw new Error(`NEVER`); }
+const getExtension = <K extends keyof Extensions, T = never>(extensions: any, name: K, defaultValue: () => T = NEVER): Extensions[K] | T => {
+  return name in extensions ? extensions[name] : defaultValue();
 }
 
 const reduceType = (t: GraphQLType): Exclude<GraphQLType, GraphQLNonNull<any> | GraphQLList<any>> => {
   if (isNonNullType(t)) return reduceType(t.ofType);
   else if (isListType(t)) return reduceType(t.ofType);
   else return t;
+}
+
+const reduceToObjectLikeType = (t: GraphQLType): GraphQLObjectType | GraphQLInterfaceType => {
+  const rType = reduceType(t);
+  if (isObjectType(rType) || isInterfaceType(rType)) return rType;
+  else throw new Error(`${t.toString()} did not reduce to object like type`);
 }
 
 const reduceToObjectType = (t: GraphQLType): GraphQLObjectType => {
@@ -108,21 +132,26 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return info.variableValues[name];
   }
 
+  const lookupTypeVariable = (name: string): GraphQLType => {
+    return info.schema.getType(name)!;
+  }
+
   const lookupVariableToSqlLike = (name: string): string | undefined => {
     return toSqlLike(lookupVariable(name));
   }
 
-  const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[]] => {
+  const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[], Field.VariantField[]] => {
     let details: Field.DetailField[] = [];
     let summaries: Field.SummaryField[] = [];
     let relations: Field.RelationField[] = [];
+    let variants: Field.VariantField[] = [];
 
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
           switch (selection.name.value) {
             case 'details':
-              [details, relations] = visitDetailSelections(selection.selectionSet?.selections ?? [], reduceToObjectType(type.getFields()['details'].type));
+              [details, relations, variants] = visitDetailSelections(selection.selectionSet?.selections ?? [], reduceToObjectLikeType(type.getFields()['details'].type));
               break;
             case 'summary':
               summaries = visitSummarySelections(selection.selectionSet?.selections ?? [], reduceToObjectType(type.getFields()['summary'].type));
@@ -132,12 +161,13 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       }
     }
 
-    return [details, summaries, relations];
+    return [details, summaries, relations, variants];
   };
 
-  const visitDetailSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.RelationField[]] => {
+  const visitDetailSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType | GraphQLInterfaceType): [Field.DetailField[], Field.RelationField[], Field.VariantField[]] => {
     let details: Field.DetailField[] = [];
     let relations: Field.RelationField[] = [];
+    let variants: Field.VariantField[] = [];
 
     for (const selection of selections) {
       switch (selection.kind) {
@@ -150,7 +180,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           const { extensions, type: fieldType } = field;
 
           if (relationExtensionName in extensions) {
-            const relation = getExtension(extensions, relationExtensionName, null as any);
+            const relation = getExtension(extensions, relationExtensionName);
             relations.push({
               kind: 'RelationField',
               relation: relation.length === 1 ? {
@@ -161,7 +191,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                 toJunction: { kind: 'DirectRelation', ...relation[0] },
                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
               },
-              collection: createCollection(selection, reduceToObjectType(fieldType)),
+              field: createCollection(selection, reduceToObjectType(fieldType)),
             });
           }
           else {
@@ -169,10 +199,33 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           }
         }
           break;
+        case Kind.INLINE_FRAGMENT: {
+          if (selection.typeCondition === undefined)
+            throw new Error(`Error: unexpected inline fragment without type condition`);
+          const typeName = selection.typeCondition.name.value;
+          const type = reduceToObjectLikeType(lookupTypeVariable(typeName));
+
+          const { extensions } = type;
+
+          const [relation] = getExtension(extensions, relationExtensionName, null as any);
+          const { tag } = getExtension(extensions, variantExtensionName, null as any);
+          const [details, relations] = visitDetailSelections(selection.selectionSet.selections, type);
+
+          variants.push({
+            kind: "VariantField",
+            table: relation.to,
+            parentId: relation.parentId,
+            childId: relation.childId,
+            details,
+            relations,
+            tag,
+          });
+          break;
+        }
       }
     }
 
-    return [details, relations];
+    return [details, relations, variants];
   };
 
   const defaultSummaryHandlerExtension: SummaryHandlerExtension = {
@@ -195,7 +248,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           for (const subSelection of selection.selectionSet?.selections ?? []) {
             switch (subSelection.kind) {
               case Kind.FIELD: {
-                const { handler } = getExtension(extensions, summaryHandlerExtensionName, defaultSummaryHandlerExtension);
+                const { handler } = getExtension(extensions, summaryHandlerExtensionName, () => defaultSummaryHandlerExtension);
                 summaries.push(handler(selection, subSelection, type));
               }
                 break;
@@ -227,7 +280,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return offset === undefined && limit === undefined ? undefined : { kind: 'PaginationField', limit, offset };
   };
 
-  const isSkipped = (x: FieldNode): boolean => {
+  const isSkipped = (x: SelectionNode): boolean => {
     const directives = x.directives ?? [];
     const skipDirective = directives.find(x => x.name.value === 'skip');
     if (!skipDirective) return false;
@@ -238,13 +291,14 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
   };
 
   const createCollection = (field: FieldNode, type: GraphQLObjectType): Field.CollectionField => {
-    const [details, summaries, relations] = visitCollectionSelections(field.selectionSet?.selections ?? [], type);
+    const [details, summaries, relations, variants] = visitCollectionSelections(field.selectionSet?.selections ?? [], type);
 
-    const extensions = reduceToObjectType(type.getFields()['details'].type).extensions;
+    const extensions = reduceToObjectLikeType(type.getFields()['details'].type).extensions;
     if (!(tableExtensionName in extensions))
       throw new Error(`Collection type: ${type.name}'s details does not have the associated table extension, please fix`);
 
     const tableExtension = extensions[tableExtensionName] as TableExtension;
+    const { tagColumn } = getExtension(extensions, interfaceExtensionName, () => ({ tagColumn: undefined }));
 
     const pagination = paginationArgs(field.arguments ?? []);
     const skip = isSkipped(field);
@@ -257,11 +311,13 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       details,
       summaries,
       relations,
+      variants,
       pagination,
+      tagColumn
     };
   };
 
-  const createDetailField = (x: FieldNode, type: GraphQLObjectType): Field.DetailField => {
+  const createDetailField = (x: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType): Field.DetailField => {
     const name = x.name.value;
     const { extensions } = type.getFields()[name];
     const [sorts, conditions] = sortAndFilterConditionsFromArgs(x.arguments ?? []);
@@ -355,9 +411,24 @@ export namespace Field {
     name: string;
     table: string;
     summaries: SummaryField[];
+    // details are for columns on this table
+    details: DetailField[];
+    // relations are for other collections
+    relations: RelationField[];
+    // variants are for columns of variant data
+    variants: VariantField[];
+    pagination?: PaginationField;
+    tagColumn?: string;
+  }
+
+  export interface VariantField {
+    kind: "VariantField";
+    table: string;
+    tag: VariantTag;
+    parentId: string;
+    childId: string;
     details: DetailField[];
     relations: RelationField[];
-    pagination?: PaginationField;
   }
 
   export interface SummaryField {
@@ -397,7 +468,7 @@ export namespace Field {
   export interface RelationField {
     kind: "RelationField";
     relation: Relation;
-    collection: CollectionField;
+    field: CollectionField;
   }
 
   export type Relation =
@@ -428,14 +499,24 @@ export namespace Field {
     hasPagination: boolean;
   }
 
+  interface VariantMetaInfo {
+    tag: VariantTag;
+    table: string;
+    join: SQL.JoinNode;
+    details: SQL.ExpressionNode[];
+    relations: SQL.JoinNode[];
+    conditions: SQL.WhereNode[];
+    sorts: SQL.SortNode[];
+  }
+
+  function mergeWhereConditions(conds: SQL.WhereNode[], op: SQL.WhereBinaryOp): SQL.WhereNode {
+    return conds.reduce((p, c) => ({ kind: "WhereBinaryNode", left: p, op, right: c }));
+  }
+
   /**
    * TODO!! need to do something with the summary filter and sort arguments
    */
   export function generate(field: CollectionField): SQL.SelectNode {
-    // console.log('-----------------------------------');
-    // console.log(inspect(field, undefined, null, true));
-    // console.log('-----------------------------------');
-
     let tableAliasCount = 0;
     const makeTableAlias = () => `t${tableAliasCount++}`;
 
@@ -446,32 +527,20 @@ export namespace Field {
       const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
       const [summary, summaryHavingNodes, summarySortNodes] = generateSummaryFields(x.summaries, table);
       const relations = generateRelationFields(x.relations, rawTable);
+      const variants = generateVariantFields(x.variants, rawTable, table);
 
-      const fullDetails = createDetailsAggExpression([
-        ...details,
-        ...x.relations.filter(x => !x.collection.skip).flatMap<SQL.ExpressionNode>(r => [
-          { kind: 'StringExpressionNode', value: r.collection.name },
-          { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: table }, right: { kind: 'IdentifierExpressionNode', name: r.collection.name } }
-        ]),
-      ]);
+      const tables = {
+        baseTable: table,
+        innerTable: rawTable,
+      };
+
+      const columns = createColumns(x, details, summary, relations, variants, tables);
+      const joins = createJoins(relations, variants);
+      const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
 
       const node: SQL.SelectNode = {
         kind: 'SelectNode',
-        columns: x.skip ? [] : [{
-          kind: 'ColumnNode',
-          expr: {
-            kind: 'ApplicationExpressionNode',
-            func: {
-              kind: 'RawExpressionNode',
-              value: 'json_build_object'
-            },
-            args: [
-              ...(x.details.length + x.relations.length === 0 ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
-              ...(x.summaries.length === 0 ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
-            ]
-          },
-          alias: x.name,
-        }],
+        columns,
         from: {
           kind: 'FromSelectNode',
           alias: table,
@@ -483,8 +552,8 @@ export namespace Field {
               alias: rawTable
             },
             columns: [],
-            joins: relations,
-            conditions: detailsWhereNodes,
+            joins,
+            conditions,
             sorts: detailsSortNodes,
             pagination: !x.pagination ? undefined : {
               kind: 'PaginationNode',
@@ -494,7 +563,6 @@ export namespace Field {
           },
         },
         joins: [],
-        conditions: [],
         sorts: [],
       };
 
@@ -506,8 +574,129 @@ export namespace Field {
       return [node, table, info];
     };
 
-    const createDetailsAggExpression = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
-      return { kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'array_agg' }, args: [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }] };
+    const createColumns = (collection: CollectionField, details: SQL.ExpressionNode[], summary: SQL.ExpressionNode, relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
+      const wrap = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
+        return {
+          kind: 'ApplicationExpressionNode',
+          func: {
+            kind: 'RawExpressionNode',
+            value: 'json_build_object'
+          },
+          args
+        };
+      };
+
+      const wrapVariant = (args: SQL.ExpressionNode[], variant: VariantMetaInfo): SQL.ExpressionNode => {
+        return wrap([...args, ...variant.details]);
+      }
+
+      const hasDetails = details.length > 0 || relations.length > 0 || variants.length > 0;
+      const hasSummary = collection.summaries.length > 0;
+      const needsDetailTag = collection.tagColumn !== undefined && !collection.details.some(x => x.name === collection.tagColumn);
+
+      const nonVariantDetails: SQL.ExpressionNode[] = [
+        ...details,
+        ...!needsDetailTag ? [] : [{ kind: 'StringExpressionNode' as const, value: collection.tagColumn! }, SQL.simpleColumnNode(tables.baseTable, collection.tagColumn!).expr],
+        ...collection.relations.filter(x => !x.field.skip).flatMap<SQL.ExpressionNode>(r => [
+          { kind: 'StringExpressionNode', value: r.field.name },
+          { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }
+        ]),
+      ];
+
+      const fullDetails: SQL.ExpressionNode = {
+        kind: 'ApplicationExpressionNode',
+        func: {
+          kind: 'RawExpressionNode',
+          value: 'array_agg'
+        },
+        args: [
+          variants.length === 0 ? wrap(nonVariantDetails) :
+            variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
+              {
+                kind: "CaseExpressionNode",
+                whens: variants.map<SQL.WhenExpressionNode>(variant => ({
+                  kind: "WhenExpressionNode",
+                  cond: {
+                    kind: "BinaryOpExpressionNode",
+                    op: "=",
+                    left: {
+                      kind: "DotExpressionNode",
+                      left: {
+                        kind: "IdentifierExpressionNode",
+                        name: tables.baseTable,
+                      },
+                      right: {
+                        kind: "IdentifierExpressionNode",
+                        name: variant.tag.column,
+                      },
+                    },
+                    right: {
+                      kind: "StringExpressionNode",
+                      value: variant.tag.value
+                    },
+                  },
+                  value: wrapVariant(nonVariantDetails, variant),
+                })),
+              }
+        ]
+      };
+
+      return collection.skip ? [] : [{
+        kind: 'ColumnNode',
+        expr: {
+          kind: 'ApplicationExpressionNode',
+          func: {
+            kind: 'RawExpressionNode',
+            value: 'json_build_object'
+          },
+          args: [
+            ...(!hasDetails ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
+            ...(!hasSummary ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
+          ]
+        },
+        alias: collection.name,
+      }];
+    }
+
+    const createJoins = (relations: SQL.JoinNode[], variants: VariantMetaInfo[]): SQL.JoinNode[] => {
+      return relations.concat(...variants.flatMap(x => [x.join, x.relations]));
+    }
+
+    const createWhereConditions = (base: SQL.WhereNode[], variants: VariantMetaInfo[], tables: { baseTable: string, innerTable: string }): SQL.WhereNode | undefined => {
+      const tagCond = (v: VariantMetaInfo): SQL.WhereNode => ({
+        kind: "WhereCompareNode",
+        column: {
+          kind: "ColumnNode",
+          expr: {
+            kind: "DotExpressionNode",
+            left: {
+              kind: "IdentifierExpressionNode",
+              name: tables.innerTable,
+            },
+            right: {
+              kind: "IdentifierExpressionNode",
+              name: v.tag.column,
+            }
+          }
+        },
+        op: "=",
+        value: new SQL.TrustedInput(`'${v.tag.value}'`),
+      });
+
+      const variantConds = (v: VariantMetaInfo): SQL.WhereNode[] => [tagCond(v), ...v.conditions];
+
+      const conds = (
+        variants.length === 0 ? base :
+          variants.length === 1 ? [...base, ...variantConds(variants[0])] :
+            [
+              ...base,
+              mergeWhereConditions(variants.map<SQL.WhereNode>(v =>
+                mergeWhereConditions(variantConds(v), 'and')
+              ), 'or')
+            ]
+      );
+
+      return conds.length === 0 ? undefined : mergeWhereConditions(conds, 'and');
     }
 
     const generateDetailFields = (x: DetailField[], rawTable: string, table: string): [SQL.ExpressionNode[], SQL.WhereNode[], SQL.SortNode[]] => {
@@ -585,7 +774,7 @@ export namespace Field {
     };
 
     const generateRelationField = (x: RelationField, table: string): SQL.JoinNode => {
-      const [collection, collectionTable, info] = generateCollectionField(x.collection);
+      const [collection, collectionTable, info] = generateCollectionField(x.field);
 
       const groupColumName = `${collectionTable}__gc`;
       const rowNumberName = `${collectionTable}__rn`;
@@ -612,6 +801,25 @@ export namespace Field {
               }
             },
           };
+
+          const conditions: SQL.WhereNode[] = [
+            ...collection.conditions === undefined ? [] : [collection.conditions],
+            ...fromSelectNode.select.pagination?.limit === undefined ? [] : [{
+              kind: 'WhereCompareNode' as const,
+              column: rowNumberColumn,
+              op: '<=' as const,
+              value: fromSelectNode.select.pagination?.limit! + (fromSelectNode.select.pagination?.offset ?? 0),
+            }],
+            ...fromSelectNode.select.pagination?.offset === undefined ? [] : [{
+              kind: 'WhereCompareNode' as const,
+              column: rowNumberColumn,
+              op: '>' as const,
+              value: fromSelectNode.select.pagination?.offset!,
+            }],
+          ];
+
+          const needsConditions = conditions.length !== 0;
+
           const groupedCollection: SQL.SelectNode = {
             ...collection,
             ...paginatedFrom,
@@ -623,21 +831,9 @@ export namespace Field {
               SQL.simpleColumnNode(collectionTable, x.relation.childId, groupColumName),
               ...collection.columns,
             ],
-            conditions: [
-              ...collection.conditions,
-              ...fromSelectNode.select.pagination?.limit === undefined ? [] : [{
-                kind: 'WhereNode' as const,
-                column: rowNumberColumn,
-                op: '<=' as const,
-                value: fromSelectNode.select.pagination?.limit! + (fromSelectNode.select.pagination?.offset ?? 0),
-              }],
-              ...fromSelectNode.select.pagination?.offset === undefined ? [] : [{
-                kind: 'WhereNode' as const,
-                column: rowNumberColumn,
-                op: '>' as const,
-                value: fromSelectNode.select.pagination?.offset!,
-              }],
-            ],
+            ...!needsConditions ? {} : {
+              conditions: mergeWhereConditions(conditions, 'and'),
+            },
           };
           return {
             kind: 'DirectJoinNode',
@@ -682,9 +878,56 @@ export namespace Field {
       }
     };
 
+    const generateVariantFields = (x: VariantField[], rawTable: string, table: string): VariantMetaInfo[] => {
+      return x.map(x => generateVariantField(x, rawTable, table));
+    };
+
+    const generateVariantField = (x: VariantField, rawTable: string, table: string): VariantMetaInfo => {
+      const variantTable = makeTableAlias();
+      const innerVariantTable = makeTableAlias();
+
+      const [details, conditions, sorts] = generateDetailFields(x.details, variantTable, table);
+
+      const childIdAlias = `__${innerVariantTable}_child_id`
+      const hasChildId = x.details.some(d => d.name === x.childId);
+      const subColumns = x.details.map(d =>
+        SQL.simpleColumnNode(innerVariantTable, d.name, d.name === x.childId ? childIdAlias : undefined)
+      ).concat(!hasChildId ? [SQL.simpleColumnNode(innerVariantTable, x.childId, childIdAlias)] : []);
+
+      return {
+        table: table,
+        join: {
+          kind: "DirectJoinNode",
+          op: "left",
+          parentId: SQL.simpleColumnNode(rawTable, x.parentId),
+          childId: SQL.simpleColumnNode(variantTable, childIdAlias),
+          from: {
+            kind: "FromSelectNode",
+            alias: variantTable,
+            select: {
+              kind: "SelectNode",
+              columns: subColumns,
+              joins: [],
+              sorts: [],
+              from: {
+                kind: "FromTableNode",
+                table: x.table,
+                alias: innerVariantTable,
+              }
+            }
+          },
+        },
+        tag: x.tag,
+        details,
+        relations: [], // TODO! implement later
+        conditions,
+        sorts,
+      };
+    };
+
     const generateFieldFilterCondition = (x: FieldFilterCondition, d: SQL.ExpressionNode): SQL.WhereNode => {
       return {
-        kind: 'WhereNode',
+        kind: 'WhereCompareNode',
         column: {
           kind: 'ColumnNode',
           expr: d,
@@ -710,13 +953,17 @@ export namespace Field {
 }
 
 export namespace SQL {
+  export class TrustedInput {
+    constructor(public value: string) { }
+  }
+
   export interface SelectNode {
     kind: "SelectNode";
     columns: ColumnNode[];
     from: FromNode;
     joins: JoinNode[];
     groupBy?: GroupByNode;
-    conditions: WhereNode[];
+    conditions?: WhereNode;
     sorts: SortNode[];
     pagination?: PaginationNode;
   }
@@ -733,6 +980,8 @@ export namespace SQL {
     | StringExpressionNode
     | RawExpressionNode
     | DotExpressionNode
+    | CaseExpressionNode
+    | BinaryOpExpressionNode
 
   export interface ApplicationExpressionNode {
     kind: "ApplicationExpressionNode";
@@ -758,6 +1007,25 @@ export namespace SQL {
   export interface DotExpressionNode {
     kind: "DotExpressionNode";
     left: ExpressionNode;
+    right: ExpressionNode;
+  }
+
+  export interface CaseExpressionNode {
+    kind: "CaseExpressionNode";
+    whens: WhenExpressionNode[];
+    else?: ExpressionNode;
+  }
+
+  export interface WhenExpressionNode {
+    kind: "WhenExpressionNode";
+    cond: ExpressionNode;
+    value: ExpressionNode;
+  }
+
+  export interface BinaryOpExpressionNode {
+    kind: "BinaryOpExpressionNode";
+    left: ExpressionNode;
+    op: "=";
     right: ExpressionNode;
   }
 
@@ -796,8 +1064,23 @@ export namespace SQL {
     column: ColumnNode;
   }
 
-  export interface WhereNode {
-    kind: "WhereNode";
+  export type WhereNode =
+    | WhereCompareNode
+    | WhereBinaryNode
+
+  export type WhereBinaryOp =
+    | "and"
+    | "or"
+
+  export interface WhereBinaryNode {
+    kind: "WhereBinaryNode";
+    left: WhereNode;
+    op: WhereBinaryOp;
+    right: WhereNode;
+  }
+
+  export interface WhereCompareNode {
+    kind: "WhereCompareNode";
     column: ColumnNode;
     op: WhereOp;
     value: any;
@@ -842,8 +1125,8 @@ export namespace SQL {
 select \
 ${n.columns.length === 0 ? Prisma.raw('*') : Prisma.join(n.columns.map(generateColumnNode), ',')} \
 from ${generateFromNode(n.from)}\
-${n.joins.length === 0 ? Prisma.empty : Prisma.join(n.joins.map(generateJoinNode))}\
-${n.conditions.length === 0 ? Prisma.empty : Prisma.join(n.conditions.map(generateWhereNode), ' and ', ' where ')}\
+${n.joins.length === 0 ? Prisma.empty : Prisma.join(n.joins.map(generateJoinNode), '')}\
+${n.conditions === undefined ? Prisma.empty : Prisma.sql`where ${generateWhereNode(n.conditions)}`}\
 ${n.groupBy === undefined ? Prisma.empty : generateGroupByNode(n.groupBy)}\
 ${n.sorts.length === 0 ? Prisma.empty : Prisma.join(n.sorts.map(generateSortNode), ',', ' order by ')}\
 ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
@@ -861,6 +1144,8 @@ ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
         case 'StringExpressionNode': return generateStringExpressionNode(n);
         case 'RawExpressionNode': return generateRawExpressionNode(n);
         case 'DotExpressionNode': return generateDotExpressionNode(n);
+        case 'CaseExpressionNode': return generateCaseExpressionNode(n);
+        case 'BinaryOpExpressionNode': return generateBinaryOpExpressionNode(n);
       }
     };
 
@@ -882,6 +1167,18 @@ ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
 
     const generateDotExpressionNode = (n: DotExpressionNode): Prisma.Sql => {
       return Prisma.sql`${generateExpressionNode(n.left)}.${generateExpressionNode(n.right)}`;
+    };
+
+    const generateCaseExpressionNode = (n: CaseExpressionNode): Prisma.Sql => {
+      return Prisma.sql`case ${Prisma.join(n.whens.map(generateWhenExpressionNode), '')}${n.else === undefined ? Prisma.empty : Prisma.sql`else ${generateExpressionNode(n.else)}`}end`;
+    };
+
+    const generateWhenExpressionNode = (n: WhenExpressionNode): Prisma.Sql => {
+      return Prisma.sql`when ${generateExpressionNode(n.cond)} then ${generateExpressionNode(n.value)}`;
+    };
+
+    const generateBinaryOpExpressionNode = (n: BinaryOpExpressionNode): Prisma.Sql => {
+      return Prisma.sql`(${generateExpressionNode(n.left)} ${Prisma.raw(n.op)} ${generateExpressionNode(n.right)})`;
     };
 
     const generateFromNode = (n: FromNode): Prisma.Sql => {
@@ -908,9 +1205,22 @@ ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
     };
 
     const generateWhereNode = (n: WhereNode): Prisma.Sql => {
+      switch (n.kind) {
+        case "WhereBinaryNode": return generateWhereBinaryNode(n);
+        case "WhereCompareNode": return generateWhereCompareNode(n);
+      }
+    };
+
+    const generateWhereBinaryNode = (n: WhereBinaryNode): Prisma.Sql => {
+      return Prisma.sql`(${generateWhereNode(n.left)}) ${Prisma.raw(n.op)} (${generateWhereNode(n.right)})`
+    };
+
+    const generateWhereCompareNode = (n: WhereCompareNode): Prisma.Sql => {
       let value: Prisma.Sql | undefined = undefined;
 
-      if (Array.isArray(n.value)) {
+      if (n.value instanceof TrustedInput)
+        value = Prisma.raw(n.value.value);
+      else if (Array.isArray(n.value)) {
         if (n.value.length > 0)
           value = Prisma.sql`(${Prisma.join(n.value.map(x => Prisma.sql`${x}`), ',')})`;
       }
@@ -924,6 +1234,7 @@ ${!n.pagination ? Prisma.empty : generatePaginationNode(n.pagination)}\
 
       return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)} ${value}`;
     };
+
 
     const generateSortNode = (n: SortNode): Prisma.Sql => {
       return Prisma.sql`${generateColumnNode(n.column)} ${Prisma.raw(n.op)}`;
