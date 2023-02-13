@@ -214,8 +214,8 @@ function createCollectionTypes(
       name: collectionName,
       definition(t) {
         // @ts-ignore
-        t.field('summary', { type: summaryName, resolve: x => x.summary ?? {} });
-        t.list.field('details', {
+        t.nonNull.field('summary', { type: summaryName, resolve: x => x.summary ?? {} });
+        t.nonNull.list.nonNull.field('details', {
           // @ts-ignore
           type: config.name, resolve: (x) => x.details ?? []
         });
@@ -226,14 +226,14 @@ function createCollectionTypes(
     objectType({
       name: summaryName,
       definition(t) {
-        t.field('total', { type: ArrayAggregation, extensions: { [summaryHandlerExtensionName]: totalSummaryHandler }, resolve: x => x.total ?? {} });
+        t.nonNull.field('total', { type: ArrayAggregation, extensions: { [summaryHandlerExtensionName]: totalSummaryHandler }, resolve: x => x.total ?? {} });
       },
       description: ``,
     }),
     extendType({
       type: 'Query',
       definition(t) {
-        t.field(`${collectionName[0].toLowerCase()}${collectionName.slice(1)}`, {
+        t.nonNull.field(`${collectionName[0].toLowerCase()}${collectionName.slice(1)}`, {
           // @ts-ignore
           type: collectionName,
           async resolve(_root, args, ctx, info) {
