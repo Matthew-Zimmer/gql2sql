@@ -1,6 +1,6 @@
 import { arg, enumType, intArg, objectType, stringArg, interfaceType, unionType, extendType, booleanArg, floatArg, idArg, list, nonNull } from 'nexus';
 import { ArgsRecord, FieldOutConfig, NexusListDef, NexusNonNullDef, NexusOutputFieldConfigWithName, TypeDef } from 'nexus/dist/core';
-import { aliasExtensionName, Extension, Field, interfaceExtensionName, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName, variantExtensionName } from './compiler';
+import { aliasExtensionName, collectionExtensionName, Extension, Field, interfaceExtensionName, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName, variantExtensionName } from './compiler';
 
 interface CollectionTypeBlockOptions extends Omit<FieldOutConfig<any, any>, 'type'> {
   typeName?: string;
@@ -116,6 +116,9 @@ class CollectionTypeBlock {
         ...config?.args,
       },
       resolve: x => x[name] ?? {},
+      extensions: {
+        ...collectionExtension(),
+      }
     });
   }
 
@@ -363,6 +366,10 @@ export const variantExtension = (column: string, value: string): Extension<typeo
 
 export const interfaceExtension = (column: string): Extension<typeof interfaceExtensionName> => {
   return { [interfaceExtensionName]: { tagColumn: column } };
+}
+
+export const collectionExtension = (): Extension<typeof collectionExtensionName> => {
+  return { [collectionExtensionName]: {} };
 }
 
 export const sortOpEnum = enumType({

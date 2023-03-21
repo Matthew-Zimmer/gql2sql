@@ -50,6 +50,7 @@ export interface NexusGenObjects {
     sum?: number | null; // Int
   }
   Post: { // root type
+    author?: NexusGenRootTypes['Author'] | null; // Author
     id?: string | null; // ID
     title?: string | null; // String
   }
@@ -83,11 +84,11 @@ export interface NexusGenFieldTypes {
     posts: NexusGenRootTypes['Posts'] | null; // Posts
   }
   AuthorSummary: { // field return type
-    total: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
+    total: NexusGenRootTypes['ArrayAggregation']; // ArrayAggregation!
   }
   Authors: { // field return type
-    details: Array<NexusGenRootTypes['Author'] | null> | null; // [Author]
-    summary: NexusGenRootTypes['AuthorSummary'] | null; // AuthorSummary
+    details: NexusGenRootTypes['Author'][]; // [Author!]!
+    summary: NexusGenRootTypes['AuthorSummary']; // AuthorSummary!
   }
   FloatAggregation: { // field return type
     avg: number | null; // Float
@@ -104,20 +105,20 @@ export interface NexusGenFieldTypes {
     sum: number | null; // Int
   }
   Post: { // field return type
-    authors: NexusGenRootTypes['Authors'] | null; // Authors
+    author: NexusGenRootTypes['Author'] | null; // Author
     id: string | null; // ID
     title: string | null; // String
   }
   PostSummary: { // field return type
-    total: NexusGenRootTypes['ArrayAggregation'] | null; // ArrayAggregation
+    total: NexusGenRootTypes['ArrayAggregation']; // ArrayAggregation!
   }
   Posts: { // field return type
-    details: Array<NexusGenRootTypes['Post'] | null> | null; // [Post]
-    summary: NexusGenRootTypes['PostSummary'] | null; // PostSummary
+    details: NexusGenRootTypes['Post'][]; // [Post!]!
+    summary: NexusGenRootTypes['PostSummary']; // PostSummary!
   }
   Query: { // field return type
-    authors: NexusGenRootTypes['Authors'] | null; // Authors
-    posts: NexusGenRootTypes['Posts'] | null; // Posts
+    authors: NexusGenRootTypes['Authors']; // Authors!
+    posts: NexusGenRootTypes['Posts']; // Posts!
   }
   StringAggregation: { // field return type
     count: number; // Int!
@@ -158,7 +159,7 @@ export interface NexusGenFieldTypeNames {
     sum: 'Int'
   }
   Post: { // field return type name
-    authors: 'Authors'
+    author: 'Author'
     id: 'ID'
     title: 'String'
   }
@@ -211,10 +212,6 @@ export interface NexusGenArgTypes {
     }
   }
   Post: {
-    authors: { // args
-      limit?: number | null; // Int
-      offset?: number | null; // Int
-    }
     id: { // args
       eq?: string | null; // ID
       in?: Array<string | null> | null; // [ID]

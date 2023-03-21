@@ -9,7 +9,7 @@ export const PostCollection = collectionType({
 
     t.relation('id', 'AuthorToPost', 'post_id').
       relation('author_id', 'Author', 'id').
-      collection('authors');
+      field('author', { type: "Author" });
   }
 });
 

@@ -45,6 +45,10 @@ export interface SummaryHandlerExtension {
   handler: (selection: FieldNode, subSelection: FieldNode, type: GraphQLObjectType) => Field.SummaryField;
 }
 
+export const collectionExtensionName = 'collection';
+export interface CollectionHandlerExtension {
+}
+
 interface Extensions {
   [relationExtensionName]: [RelationExtension] | [RelationExtension, RelationExtension];
   [aliasExtensionName]: AliasExtension;
@@ -52,6 +56,7 @@ interface Extensions {
   [summaryHandlerExtensionName]: SummaryHandlerExtension;
   [variantExtensionName]: VariantExtension;
   [interfaceExtensionName]: InterfaceExtension;
+  [collectionExtensionName]: CollectionHandlerExtension;
 }
 
 export type Extension<K extends keyof Extensions> = Record<K, Extensions[K]>;
@@ -181,6 +186,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
           if (relationExtensionName in extensions) {
             const relation = getExtension(extensions, relationExtensionName);
+            const type = reduceToObjectType(fieldType);
+            const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
             relations.push({
               kind: 'RelationField',
               relation: relation.length === 1 ? {
@@ -191,7 +198,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                 toJunction: { kind: 'DirectRelation', ...relation[0] },
                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
               },
-              field: createCollection(selection, reduceToObjectType(fieldType)),
+              field,
             });
           }
           else {
@@ -317,6 +324,22 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     };
   };
 
+  const createEntity = (field: FieldNode, type: GraphQLObjectType, table: string): Field.EntityField => {
+    const [details, relations, variants] = visitDetailSelections(field.selectionSet?.selections ?? [], type);
+
+    const skip = isSkipped(field);
+
+    return {
+      kind: 'EntityField',
+      skip,
+      name: field.name.value,
+      table,
+      details,
+      relations,
+      variants,
+    };
+  };
+
   const createDetailField = (x: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType): Field.DetailField => {
     const name = x.name.value;
     const { extensions } = type.getFields()[name];
@@ -421,6 +444,16 @@ export namespace Field {
     tagColumn?: string;
   }
 
+  export interface EntityField {
+    kind: "EntityField";
+    skip: boolean;
+    name: string;
+    table: string;
+    details: DetailField[];
+    relations: RelationField[];
+    variants: VariantField[];
+  }
+
   export interface VariantField {
     kind: "VariantField";
     table: string;
@@ -468,7 +501,7 @@ export namespace Field {
   export interface RelationField {
     kind: "RelationField";
     relation: Relation;
-    field: CollectionField;
+    field: CollectionField | EntityField;
   }
 
   export type Relation =
@@ -534,7 +567,7 @@ export namespace Field {
         innerTable: rawTable,
       };
 
-      const columns = createColumns(x, details, summary, relations, variants, tables);
+      const columns = createCollectionColumns(x, details, summary, relations, variants, tables);
       const joins = createJoins(relations, variants);
       const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
 
@@ -574,7 +607,64 @@ export namespace Field {
       return [node, table, info];
     };
 
-    const createColumns = (collection: CollectionField, details: SQL.ExpressionNode[], summary: SQL.ExpressionNode, relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
+    const generateEntityField = (x: EntityField): [SQL.SelectNode, string, CollectionMetaInfo] => {
+      const rawTable = makeTableAlias();
+      const table = makeTableAlias();
+
+      const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
+      const relations = generateRelationFields(x.relations, rawTable);
+      const variants = generateVariantFields(x.variants, rawTable, table);
+
+      const tables = {
+        baseTable: table,
+        innerTable: rawTable,
+      };
+
+      const columns = createEntityColumns(x, details, relations, variants, tables);
+      const joins = createJoins(relations, variants);
+      const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
+
+      const node: SQL.SelectNode = {
+        kind: 'SelectNode',
+        columns,
+        from: {
+          kind: 'FromSelectNode',
+          alias: table,
+          select: {
+            kind: 'SelectNode',
+            from: {
+              kind: 'FromTableNode',
+              table: x.table,
+              alias: rawTable
+            },
+            columns: [],
+            joins,
+            conditions,
+            sorts: detailsSortNodes,
+          },
+        },
+        joins: [],
+        sorts: [],
+      };
+
+      const info: CollectionMetaInfo = {
+        hasFilters: detailsWhereNodes.length !== 0,
+        hasPagination: false,
+      };
+
+      return [node, table, info];
+    };
+
+    const generateObjectField = (x: EntityField | CollectionField): [SQL.SelectNode, string, CollectionMetaInfo] => {
+      switch (x.kind) {
+        case "Collection":
+          return generateCollectionField(x);
+        case "EntityField":
+          return generateEntityField(x);
+      }
+    };
+
+    const createCollectionColumns = (collection: CollectionField, details: SQL.ExpressionNode[], summary: SQL.ExpressionNode, relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
       const wrap = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
         return {
           kind: 'ApplicationExpressionNode',
@@ -655,6 +745,67 @@ export namespace Field {
           ]
         },
         alias: collection.name,
+      }];
+    }
+
+    const createEntityColumns = (entity: EntityField, details: SQL.ExpressionNode[], relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
+      const wrap = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
+        return {
+          kind: 'ApplicationExpressionNode',
+          func: {
+            kind: 'RawExpressionNode',
+            value: 'json_build_object'
+          },
+          args
+        };
+      };
+
+      const wrapVariant = (args: SQL.ExpressionNode[], variant: VariantMetaInfo): SQL.ExpressionNode => {
+        return wrap([...args, ...variant.details]);
+      }
+
+      const nonVariantDetails: SQL.ExpressionNode[] = [
+        ...details,
+        ...entity.relations.filter(x => !x.field.skip).flatMap<SQL.ExpressionNode>(r => [
+          { kind: 'StringExpressionNode', value: r.field.name },
+          { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }
+        ]),
+      ];
+
+      const fullDetails: SQL.ExpressionNode =
+        variants.length === 0 ? wrap(nonVariantDetails) :
+          variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
+            {
+              kind: "CaseExpressionNode",
+              whens: variants.map<SQL.WhenExpressionNode>(variant => ({
+                kind: "WhenExpressionNode",
+                cond: {
+                  kind: "BinaryOpExpressionNode",
+                  op: "=",
+                  left: {
+                    kind: "DotExpressionNode",
+                    left: {
+                      kind: "IdentifierExpressionNode",
+                      name: tables.baseTable,
+                    },
+                    right: {
+                      kind: "IdentifierExpressionNode",
+                      name: variant.tag.column,
+                    },
+                  },
+                  right: {
+                    kind: "StringExpressionNode",
+                    value: variant.tag.value
+                  },
+                },
+                value: wrapVariant(nonVariantDetails, variant),
+              })),
+            };
+
+      return entity.skip ? [] : [{
+        kind: 'ColumnNode',
+        expr: fullDetails,
+        alias: entity.name,
       }];
     }
 
@@ -774,7 +925,9 @@ export namespace Field {
     };
 
     const generateRelationField = (x: RelationField, table: string): SQL.JoinNode => {
-      const [collection, collectionTable, info] = generateCollectionField(x.field);
+      const [collection, collectionTable, info] = generateObjectField(x.field);
+
+      const needsAgg = x.field.kind === "Collection";
 
       const groupColumName = `${collectionTable}__gc`;
       const rowNumberName = `${collectionTable}__rn`;
@@ -848,10 +1001,10 @@ export namespace Field {
           const joinTable = makeTableAlias();
           const groupedCollection: SQL.SelectNode = {
             ...collection,
-            groupBy: {
+            groupBy: needsAgg ? {
               kind: 'GroupByNode',
               column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
-            },
+            } : undefined,
             columns: [
               SQL.simpleColumnNode(junctionTable, x.relation.toJunction.childId, groupColumName),
               ...collection.columns,
