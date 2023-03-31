@@ -399,7 +399,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             break;
         }
 
-        if (value)
+        if (value !== null && value !== undefined)
           filters.push({
             kind: 'FieldFilterCondition',
             condition: filterNames[name as keyof typeof filterNames],
@@ -407,12 +407,23 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           });
       }
       else if (name === "isNull") {
-        const value = (arg.value as BooleanValueNode).value;
-        filters.push({
-          kind: 'FieldFilterCondition',
-          condition: value ? 'is' : 'is not',
-          value: 'null'
-        });
+        let value: any | undefined = undefined;
+
+        switch (arg.value.kind) {
+          case Kind.BOOLEAN:
+            value = arg.value.value;
+            break;
+          case Kind.VARIABLE:
+            value = lookupVariable(arg.value.name.value);
+            break;
+        }
+
+        if (value !== null && value !== undefined)
+          filters.push({
+            kind: 'FieldFilterCondition',
+            condition: value ? 'is' : 'is not',
+            value: 'null'
+          });
       }
     }
 
