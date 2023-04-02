@@ -124,7 +124,7 @@ const toSqlLike = (x: any, nested?: boolean): any => {
       if (x === null)
         return 'null';
       else if (Array.isArray(x) && !nested)
-        return x.map(x => toSqlLike(x, true)).join(',');
+        return x.map(x => toSqlLike(x, true));
     default:
       throw new Error(`Cannot convert ${x} to sql like safely`);
   }
@@ -340,6 +340,20 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     };
   };
 
+  const resolveValue = (value: ValueNode): any => {
+    switch (value.kind) {
+      case Kind.INT:
+      case Kind.BOOLEAN:
+      case Kind.FLOAT:
+      case Kind.STRING:
+        return value.value;
+      case Kind.LIST:
+        return value.values.map(resolveValue);
+      case Kind.VARIABLE:
+        return lookupVariable(value.name.value);
+    }
+  }
+
   const createDetailField = (x: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType): Field.DetailField => {
     const name = x.name.value;
     const { extensions } = type.getFields()[name];
@@ -353,6 +367,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       skip,
       conditions,
       sorts,
+      hasOptionalConditions: x.arguments?.some(x => x.name.value === "opt" && resolveValue(x.value) === true) ?? false,
     };
   }
 
@@ -494,6 +509,7 @@ export namespace Field {
     name: string;
     alias: string;
     conditions: FieldFilterCondition[];
+    hasOptionalConditions: boolean;
     sorts: FieldSortCondition[];
     raw?: boolean;
   }
@@ -539,7 +555,7 @@ export namespace Field {
   }
 
   interface CollectionMetaInfo {
-    hasFilters: boolean;
+    hasCascadingFilters: boolean;
     hasPagination: boolean;
   }
 
@@ -555,6 +571,10 @@ export namespace Field {
 
   function mergeWhereConditions(conds: SQL.WhereNode[], op: SQL.WhereBinaryOp): SQL.WhereNode {
     return conds.reduce((p, c) => ({ kind: "WhereBinaryNode", left: p, op, right: c }));
+  }
+
+  function hasCascadingFilters(fields: DetailField[]): boolean {
+    return fields.map(x => x.conditions.length > 0 && !x.hasOptionalConditions).some(x => x);
   }
 
   /**
@@ -611,7 +631,7 @@ export namespace Field {
       };
 
       const info: CollectionMetaInfo = {
-        hasFilters: detailsWhereNodes.length !== 0,
+        hasCascadingFilters: hasCascadingFilters(x.details),
         hasPagination: x.pagination !== undefined,
       };
 
@@ -659,7 +679,7 @@ export namespace Field {
       };
 
       const info: CollectionMetaInfo = {
-        hasFilters: detailsWhereNodes.length !== 0,
+        hasCascadingFilters: hasCascadingFilters(x.details),
         hasPagination: false,
       };
 
@@ -1001,7 +1021,7 @@ export namespace Field {
           };
           return {
             kind: 'DirectJoinNode',
-            op: info.hasFilters ? 'inner' : 'left',
+            op: info.hasCascadingFilters ? 'inner' : 'left',
             parentId: SQL.simpleColumnNode(table, x.relation.parentId),
             childId: SQL.simpleColumnNode(joinTable, groupColumName),
             from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
@@ -1033,7 +1053,7 @@ export namespace Field {
           };
           return {
             kind: 'DirectJoinNode',
-            op: info.hasFilters ? 'inner' : 'left',
+            op: info.hasCascadingFilters ? 'inner' : 'left',
             parentId: SQL.simpleColumnNode(table, x.relation.toJunction.parentId),
             childId: SQL.simpleColumnNode(joinTable, groupColumName),
             from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },

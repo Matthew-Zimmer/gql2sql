@@ -299,6 +299,7 @@ const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>)
         in: arg({ type: list('Int') }),
         notIn: arg({ type: list('Int') }),
         sort: arg({ type: 'SortOp' }),
+        opt: booleanArg(),
       };
     case 'Float':
       return {
@@ -312,6 +313,7 @@ const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>)
         in: arg({ type: list('Float') }),
         notIn: arg({ type: list('Float') }),
         sort: arg({ type: 'SortOp' }),
+        opt: booleanArg(),
       };
     case 'ID':
       return {
@@ -320,6 +322,7 @@ const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>)
         isNull: booleanArg(),
         in: arg({ type: list('ID') }),
         notIn: arg({ type: list('ID') }),
+        opt: booleanArg(),
       };
     case 'String':
       return {
@@ -329,6 +332,7 @@ const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>)
         in: arg({ type: list('String') }),
         notIn: arg({ type: list('String') }),
         sort: arg({ type: 'SortOp' }),
+        opt: booleanArg(),
       };
     case 'Boolean':
       return {
@@ -338,6 +342,7 @@ const argsForType = (x: string | NexusNonNullDef<string> | NexusListDef<string>)
         in: arg({ type: list('Boolean') }),
         notIn: arg({ type: list('Boolean') }),
         sort: arg({ type: 'SortOp' }),
+        opt: booleanArg(),
       };
   }
 }
@@ -390,6 +395,7 @@ const totalSummaryHandler: SummaryHandlerExtension = {
         skip: false,
         sorts: [],
         conditions: [],
+        hasOptionalConditions: false,
       },
     };
   },
