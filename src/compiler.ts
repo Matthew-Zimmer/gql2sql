@@ -1007,10 +1007,10 @@ export namespace Field {
           const groupedCollection: SQL.SelectNode = {
             ...collection,
             ...paginatedFrom,
-            groupBy: {
+            groupBy: needsAgg ? {
               kind: 'GroupByNode',
               column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
-            },
+            } : undefined,
             columns: [
               SQL.simpleColumnNode(collectionTable, x.relation.childId, groupColumName),
               ...collection.columns,
