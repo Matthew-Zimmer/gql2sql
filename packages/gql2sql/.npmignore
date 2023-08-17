@@ -1,7 +1,5 @@
-examples
 dist
 node_modules
 README.md
-.vscode
 src
 tsconfig.json

@@ -15,7 +15,7 @@ python3 ingest.py
 npm run dev
 ```
 
-3. Go to http://localhost:4000/graphql
+3. Go to http://localhost:4000
 4. Mess around in the playground
 
 ## TODO

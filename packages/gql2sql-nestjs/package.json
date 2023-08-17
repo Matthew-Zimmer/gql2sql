@@ -1,0 +1,23 @@
+{
+  "name": "gql2sql-nestjs",
+  "version": "0.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "graphql"
+  ],
+  "author": "matthew-zimmer",
+  "license": "MIT",
+  "devDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Matthew-Zimmer/gql2sql.git"
+  },
+  "homepage": "https://github.com/Matthew-Zimmer/gql2sql"
+}
