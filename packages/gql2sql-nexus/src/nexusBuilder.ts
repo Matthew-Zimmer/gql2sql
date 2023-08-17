@@ -1,6 +1,6 @@
 import { arg, enumType, intArg, objectType, stringArg, interfaceType, unionType, extendType, booleanArg, floatArg, idArg, list, nonNull } from 'nexus';
 import { ArgsRecord, FieldOutConfig, NexusListDef, NexusNonNullDef, NexusOutputFieldConfigWithName, TypeDef } from 'nexus/dist/core';
-import { aliasExtensionName, collectionExtensionName, Extension, Field, interfaceExtensionName, prepareSQLForQuery, RelationExtension, relationExtensionName, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName, variantExtensionName } from './compiler';
+import { aliasExtensionName, collectionExtensionName, Extension, Field, interfaceExtensionName, prepareSQLForQuery, RelationExtension, relationExtensionName, SQL, SummaryHandlerExtension, summaryHandlerExtensionName, tableExtensionName, variantExtensionName } from 'gql2sql';
 
 interface CollectionTypeBlockOptions extends Omit<FieldOutConfig<any, any>, 'type'> {
   typeName?: string;
@@ -206,7 +206,8 @@ function createUnionCollectionDetailsType(
   ];
 }
 
-function createCollectionTypes(
+function createCollectionTypes<T>(
+  builder: SQL.Builder<T>,
   collectionName: string,
   summaryName: string,
   config: CollectionTypeBlockOptions,
@@ -240,7 +241,7 @@ function createCollectionTypes(
           // @ts-ignore
           type: collectionName,
           async resolve(_root, args, ctx, info) {
-            const query = prepareSQLForQuery(info);
+            const query = prepareSQLForQuery(builder, info);
             // console.log(query.sql);
             const data = await ctx.prisma.$queryRaw(query);
             return data[0].root ?? {};
@@ -255,7 +256,7 @@ function createCollectionTypes(
   ];
 }
 
-export const collectionType = (config: CollectionTypeConfig) => {
+export const makeCollectionType = <T>(sqlBuilder: SQL.Builder<T>) => (config: CollectionTypeConfig) => {
   const collectionName = config.pluralForm ?? `${config.name}s`;
   const summaryName = `${config.name}Summary`;
 
@@ -274,7 +275,7 @@ export const collectionType = (config: CollectionTypeConfig) => {
     throw new Error(`Error: You added a variant field without marking another field as the tag to use for the variant`);
 
   return [
-    ...createCollectionTypes(collectionName, summaryName, config),
+    ...createCollectionTypes(sqlBuilder, collectionName, summaryName, config),
     ...(isVariant ?
       createUnionCollectionDetailsType(fields, variants, variantTag!, config) :
       createSingularCollectionDetailsType(fields, config)
