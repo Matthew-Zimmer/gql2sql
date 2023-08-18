@@ -1,0 +1,48 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Recipe {
+  id           String               @id
+  title        String
+  description  String?
+  creationDate DateTime
+  ingredients  RecipeToIngredient[]
+}
+
+model RecipeToIngredient {
+  recipeId     String
+  ingredientId String
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  recipe     Recipe     @relation(fields: [recipeId], references: [id])
+
+  @@id([recipeId, ingredientId])
+}
+
+enum IngredientKind {
+  Solid
+  Liquid
+}
+
+model Ingredient {
+  id      String               @id
+  name    String
+  kind    IngredientKind
+  recipes RecipeToIngredient[]
+}
+
+model SolidIngredient {
+  id       String @id
+  quantity Int
+}
+
+model LiquidIngredient {
+  id     String @id
+  amount Float
+}

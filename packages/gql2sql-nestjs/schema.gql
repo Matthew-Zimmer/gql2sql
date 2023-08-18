@@ -1,0 +1,90 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+directive @upper on FIELD_DEFINITION
+
+"""asdjlksadkjd"""
+interface Ingredient {
+  id: ID!
+  name: String!
+  kind: IngredientKind!
+}
+
+enum IngredientKind {
+  Solid
+  Liquid
+}
+
+"""SolidIngredient"""
+type SolidIngredient implements Ingredient {
+  id: ID!
+  name: String!
+  kind: IngredientKind!
+  quantity: Int!
+}
+
+"""LiquidIngredient"""
+type LiquidIngredient implements Ingredient {
+  id: ID!
+  name: String!
+  kind: IngredientKind!
+  amount: Float!
+}
+
+"""summary"""
+type IngredientsSummary {
+  dummy: String!
+}
+
+"""Ingredients"""
+type Ingredients {
+  id: IngredientsSummary!
+  details: [Ingredient!]!
+}
+
+"""recipe"""
+type Recipe {
+  id: ID!
+  description: String
+  creationDate: Date!
+  ingredients: Ingredients!
+}
+
+"""summary"""
+type RecipesSummary {
+  dummy: String!
+}
+
+"""recipes"""
+type Recipes {
+  id: RecipesSummary!
+  details: [Recipe!]!
+}
+
+"""Date custom scalar type"""
+scalar Date
+
+type Query {
+  recipe(id: String!): Recipe!
+  recipes(skip: Int! = 0, take: Int! = 25): Recipes!
+  ingredient(id: String!): Ingredient!
+  ingredients: Ingredients!
+}
+
+type Mutation {
+  addRecipe(newRecipeData: NewRecipeInput!): ID!
+  removeRecipe(id: String!): Boolean!
+  addIngredient(newIngredient: NewIngredientInput!): ID!
+}
+
+input NewRecipeInput {
+  title: String!
+  description: String
+}
+
+input NewIngredientInput {
+  name: String!
+  amount: Int!
+  kind: IngredientKind!
+}
