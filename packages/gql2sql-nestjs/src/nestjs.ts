@@ -1,9 +1,11 @@
 import { applyDecorators } from '@nestjs/common';
-import { Extensions, Field, FieldOptions, Float, ID, InputType, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions } from '@nestjs/graphql';
+import { Extensions, Field, FieldOptions, Float, ID, InputType, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
 import { aliasExtensionName, collectionExtensionName, interfaceExtensionName, relationExtensionName, tableExtensionName, variantExtensionName } from 'gql2sql';
 
-export function Relation(parentId: string, to: string, childId: string): ReturnType<typeof applyDecorators>;
-export function Relation(parentId: string, mapping: string, mappingParentId: string, mappingChildId: string, to: string, childId: string): ReturnType<typeof applyDecorators>;
+type Decorator = ReturnType<typeof applyDecorators>
+
+export function Relation(parentId: string, to: string, childId: string): Decorator;
+export function Relation(parentId: string, mapping: string, mappingParentId: string, mappingChildId: string, to: string, childId: string): Decorator;
 export function Relation(...args: string[]) {
   return applyDecorators(
     Extensions({
@@ -22,48 +24,81 @@ export function Alias(name: string) {
   );
 }
 
-export function Table(options?: ObjectTypeOptions) {
-  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => applyDecorators(
-    ObjectType(options ?? {}),
-    Extensions({
-      [tableExtensionName]: { name: target.name }
-    })
-  )(target, propertyKey, descriptor);
+export function Table(options?: ObjectTypeOptions): Decorator;
+export function Table(name: string, options?: ObjectTypeOptions): Decorator;
+export function Table(op1?: ObjectTypeOptions | string, op2?: ObjectTypeOptions) {
+  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => {
+    const name = typeof op1 === 'string' ? op1 : target.name;
+    const options = typeof op1 === 'object' ? op1 : op2 ?? {};
+    return applyDecorators(
+      ObjectType(options),
+      Extensions({
+        [tableExtensionName]: { name }
+      })
+    )(target, propertyKey, descriptor)
+  };
 }
-
-export function CollectionField(options?: FieldOptions) {
+export function CollectionField<T extends ReturnTypeFuncValue>(ty?: () => T, options?: FieldOptions): Decorator;
+export function CollectionField(options?: FieldOptions): Decorator;
+export function CollectionField<T extends ReturnTypeFuncValue>(arg1?: FieldOptions | (() => T), arg2?: FieldOptions) {
+  const ty = typeof arg1 === 'function' ? arg1 : undefined;
+  const options = typeof arg1 === 'object' ? arg1 : arg2 ?? {};
+  const fullOptions = { ...options, middleware: [...options?.middleware ?? [], async (ctx: any, next: any) => (await next()) ?? {}] };
   return applyDecorators(
-    Field({ ...options, middleware: [...options?.middleware ?? [], async (ctx, next) => (await next()) ?? {}] }),
+    ty === undefined ? Field(fullOptions) : Field(ty, fullOptions as any),
     Extensions({
       [collectionExtensionName]: {}
     }),
   );
 }
 
-export function Variant(options?: Omit<InterfaceTypeOptions, 'resolveType'>) {
-  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => applyDecorators(
-    InterfaceType({
-      resolveType: (x) => {
-        return x.kind;
-      },
-      ...options,
-    }),
-    Extensions({
-      [tableExtensionName]: { name: target.name },
-      [interfaceExtensionName]: { tagColumn: "kind" }
-    }),
-  )(target, propertyKey, descriptor);
+type VariantOptions = Omit<InterfaceTypeOptions, 'resolveType'> & { tagColumn?: string };
+
+export function Variant(options?: VariantOptions): Decorator;
+export function Variant(name: string, options?: VariantOptions): Decorator;
+export function Variant(op1?: string | VariantOptions, op2?: VariantOptions) {
+  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => {
+    const name = typeof op1 === 'string' ? op1 : target.name;
+    const options = typeof op1 === 'object' ? op1 : op2 ?? {};
+    const tagColumn = options.tagColumn ?? 'kind';
+
+    return applyDecorators(
+      InterfaceType({
+        ...options,
+        resolveType: (x) => {
+          return x.kind;
+        },
+      }),
+      Extensions({
+        [tableExtensionName]: { name },
+        [interfaceExtensionName]: { tagColumn }
+      }),
+    )(target, propertyKey, descriptor)
+  };
 }
 
-export function VariantOf<T>(type: () => T, options?: Omit<ObjectTypeOptions, 'implements'>) {
-  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => applyDecorators(
-    ObjectType({ implements: type, ...options }),
-    Extensions({
-      [tableExtensionName]: { name: target.name },
-      [variantExtensionName]: { tag: { column: 'kind', value: target.name } },
-      [relationExtensionName]: [{ parentId: 'id', to: target.name, childId: 'id' }]
-    })
-  )(target, propertyKey, descriptor);
+type VariantOfOptions = Omit<ObjectTypeOptions, 'implements'> & { column?: string, tag?: string, parentId?: string, childId?: string };
+
+export function VariantOf<T>(type: () => T, name: string, options?: VariantOfOptions): Decorator;
+export function VariantOf<T>(type: () => T, options?: VariantOfOptions): Decorator;
+export function VariantOf<T>(type: () => T, op1?: string | VariantOfOptions, op2?: VariantOfOptions) {
+  return <F extends Function, Y>(target: F, propertyKey?: string | symbol, descriptor?: TypedPropertyDescriptor<Y>) => {
+    const name = typeof op1 === 'string' ? op1 : target.name;
+    const options = typeof op1 === 'object' ? op1 : op2 ?? {};
+    const tag = options.tag ?? name;
+    const column = options.column ?? 'kind';
+    const parentId = options.parentId ?? 'id';
+    const childId = options.childId ?? 'id';
+
+    return applyDecorators(
+      ObjectType({ ...options, implements: type }),
+      Extensions({
+        [tableExtensionName]: { name },
+        [variantExtensionName]: { tag: { column, value: tag } },
+        [relationExtensionName]: [{ parentId, to: name, childId }]
+      })
+    )(target, propertyKey, descriptor)
+  };
 }
 
 @ObjectType()
