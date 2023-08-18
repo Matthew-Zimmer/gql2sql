@@ -1,9 +1,8 @@
-import { Directive, Extensions, Field, ID, ObjectType } from '@nestjs/graphql';
-import { collectionExtensionName, relationExtensionName, tableExtensionName } from 'gql2sql'
+import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
 import { Ingredients } from '../../ingredients/models/ingredient.model';
+import { CollectionField, Relation, Table } from '../../nestjs';
 
-@ObjectType({ description: 'recipe' })
-@Extensions({ [tableExtensionName]: { name: 'Recipe' } })
+@Table()
 export class Recipe {
   @Field(type => ID)
   // @ts-expect-error
@@ -21,15 +20,8 @@ export class Recipe {
   // @ts-expect-error
   creationDate: Date;
 
-  @Field(type => Ingredients, {
-    // @ts-ignore
-    middleware: async (ctx, next) => {
-      const value = await next();
-      return value ?? {};
-    }
-  })
-  @Extensions({ [relationExtensionName]: [{ parentId: "id", to: "RecipeToIngredient", childId: "recipeId" }, { parentId: "ingredientId", to: "Ingredient", childId: "id" }] })
-  @Extensions({ [collectionExtensionName]: {} })
+  @Relation('id', 'RecipeToIngredient', 'recipeId', 'ingredientId', 'Ingredient', 'id')
+  @CollectionField()
   // @ts-expect-error
   ingredients: Ingredients;
 }
@@ -40,8 +32,7 @@ export class RecipesSummary {
   dummy?: string;
 }
 
-@ObjectType({ description: 'recipes' })
-
+@ObjectType()
 export class Recipes {
   @Field(type => RecipesSummary, { defaultValue: {} })
   // @ts-expect-error

@@ -26,8 +26,8 @@ model RecipeToIngredient {
 }
 
 enum IngredientKind {
-  Solid
-  Liquid
+  SolidIngredient
+  LiquidIngredient
 }
 
 model Ingredient {
