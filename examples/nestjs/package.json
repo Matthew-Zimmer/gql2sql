@@ -1,5 +1,5 @@
 {
-  "name": "gql2sql-nestjs",
+  "name": "gql2sql-nestjs-example",
   "version": "0.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -27,7 +27,7 @@
     "@prisma/client": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
-    "gql2sql": "^1.0.0",
+    "gql2sql-nestjs": "^0.0.0",
     "graphql": "^16.8.0"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
 import { Ingredients } from '../../ingredients/models/ingredient.model';
-import { CollectionField, Relation, Table } from '../../nestjs';
+import { CollectionField, Relation, Table } from 'gql2sql-nestjs';
 
 @Table()
 export class Recipe {

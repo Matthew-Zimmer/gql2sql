@@ -1,6 +1,6 @@
 import { Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IngredientKind } from '@prisma/client';
-import { Variant, VariantOf } from '../../nestjs';
+import { Variant, VariantOf } from 'gql2sql-nestjs';
 
 registerEnumType(IngredientKind, {
   name: 'IngredientKind',
