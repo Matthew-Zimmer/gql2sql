@@ -4,7 +4,7 @@
 
 import { Type } from '@nestjs/common';
 import { isFunction } from '@nestjs/common/utils/shared.utils';
-import { FieldOptions, NumberScalarMode } from '@nestjs/graphql';
+import { FieldOptions } from '@nestjs/graphql';
 import {
   GqlTypeReference,
   ReturnTypeFunc,

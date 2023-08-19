@@ -1,1 +1,2 @@
-export * from './nestjs';
+export * from './decorators';
+export * from './graphql';
