@@ -221,175 +221,175 @@ export class BooleanAggregations {
 
 @ArgsType()
 export class IntArgs {
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   eq: number;
 
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   neq: number;
 
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   gt: number;
 
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   lt: number;
 
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   gteq: number;
 
-  @Field(() => Int)
+  @Field(() => Int, { nullable: true })
   // @ts-expect-error
   lteq: number;
 
-  @Field(() => [Int])
+  @Field(() => [Int], { nullable: true })
   // @ts-expect-error
   in: number[];
 
-  @Field(() => [Int])
+  @Field(() => [Int], { nullable: true })
   // @ts-expect-error
   notIn: number[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNull: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNotNull: boolean;
 }
 
 @ArgsType()
 export class FloatArgs {
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   eq: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   neq: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   gt: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   lt: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   gteq: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   // @ts-expect-error
   lteq: number;
 
-  @Field(() => [Float])
+  @Field(() => [Float], { nullable: true })
   // @ts-expect-error
   in: number[];
 
-  @Field(() => [Float])
+  @Field(() => [Float], { nullable: true })
   // @ts-expect-error
   notIn: number[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNull: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNotNull: boolean;
 }
 
 @ArgsType()
 export class IDArgs {
-  @Field(() => ID)
+  @Field(() => ID, { nullable: true })
   // @ts-expect-error
   eq: string;
 
-  @Field(() => ID)
+  @Field(() => ID, { nullable: true })
   // @ts-expect-error
   neq: string;
 
-  @Field(() => [ID])
+  @Field(() => [ID], { nullable: true })
   // @ts-expect-error
   in: string[];
 
-  @Field(() => [ID])
+  @Field(() => [ID], { nullable: true })
   // @ts-expect-error
   notIn: string[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
-  isNull: string;
+  isNull: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
-  isNotNull: string;
+  isNotNull: boolean;
 }
 
 @ArgsType()
 export class StringArgs {
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   // @ts-expect-error
   eq: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   // @ts-expect-error
   neq: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   // @ts-expect-error
   like: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   // @ts-expect-error
   notLike: number;
 
-  @Field(() => [String])
+  @Field(() => [String], { nullable: true })
   // @ts-expect-error
   in: string[];
 
-  @Field(() => [String])
+  @Field(() => [String], { nullable: true })
   // @ts-expect-error
   notIn: string[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNull: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNotNull: boolean;
 }
 
 @ArgsType()
 export class BooleanArgs {
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   eq: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   neq: boolean;
 
-  @Field(() => [Boolean])
+  @Field(() => [Boolean], { nullable: true })
   // @ts-expect-error
   in: boolean[];
 
-  @Field(() => [Boolean])
+  @Field(() => [Boolean], { nullable: true })
   // @ts-expect-error
   notIn: boolean[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNull: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   // @ts-expect-error
   isNotNull: boolean;
 }

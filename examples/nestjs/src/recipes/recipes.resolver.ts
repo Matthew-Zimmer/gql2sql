@@ -39,7 +39,7 @@ export class RecipesResolver {
   }
 
   @ResolveField()
-  async id(@Args('args', { nullable: true }) args: IDArgs, @Parent() recipe: Recipe) {
+  async id(@Args() args: IDArgs, @Parent() recipe: Recipe) {
     return recipe.id;
   }
 }
