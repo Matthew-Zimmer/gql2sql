@@ -1,0 +1,10 @@
+--- "node_modules/@nestjs/graphql/dist/schema-builder/factories/interface-definition.factory copy.js"	2023-08-19 12:48:30.585822651 -0400
++++ node_modules/@nestjs/graphql/dist/schema-builder/factories/interface-definition.factory.js	2023-08-19 12:47:49.557674116 -0400
+@@ -48,6 +48,7 @@
+                  * (more on this topic here: https://github.com/graphql/graphql-js/issues/1343)
+                  */
+                 astNode: this.astDefinitionNodeFactory.createInterfaceTypeNode(metadata.name, metadata.directives),
++                extensions: metadata.extensions,
+             }),
+         };
+     }

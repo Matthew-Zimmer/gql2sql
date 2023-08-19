@@ -1,12 +1,13 @@
 {
   "name": "gql2sql-nestjs",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "prepublish": "npm run build"
+    "prepublishOnly": "npm run build",
+    "postinstall": "patch -u node_modules/@nestjs/graphql/dist/schema-builder/factories/interface-definition.factory.js -i patches/interface-definition.factory.js.patch && patch -u node_modules/@nestjs/graphql/dist/schema-builder/storages/type-metadata.storage.js -i patches/type-metadata.storage.js.patch"
   },
   "keywords": [
     "graphql"

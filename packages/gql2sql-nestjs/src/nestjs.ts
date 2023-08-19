@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
-import { ArgsType, Extensions, Field, FieldOptions, Float, ID, InputType, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
+import { ArgsType, Extensions, Field, Float, ID, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
 import { aliasExtensionName, collectionExtensionName, interfaceExtensionName, relationExtensionName, tableExtensionName, variantExtensionName } from 'gql2sql';
+import { ArgsField, ArgsFieldOptions } from './argsField';
 
 type Decorator = ReturnType<typeof applyDecorators>
 
@@ -38,14 +39,15 @@ export function Table(op1?: ObjectTypeOptions | string, op2?: ObjectTypeOptions)
     )(target, propertyKey, descriptor)
   };
 }
-export function CollectionField<T extends ReturnTypeFuncValue>(ty?: () => T, options?: FieldOptions): Decorator;
-export function CollectionField(options?: FieldOptions): Decorator;
-export function CollectionField<T extends ReturnTypeFuncValue>(arg1?: FieldOptions | (() => T), arg2?: FieldOptions) {
+
+export function CollectionField<T extends ReturnTypeFuncValue, A extends ReturnTypeFuncValue>(ty?: () => T, options?: ArgsFieldOptions<T, A>): Decorator;
+export function CollectionField<A extends ReturnTypeFuncValue>(options?: ArgsFieldOptions<any, A>): Decorator;
+export function CollectionField<T extends ReturnTypeFuncValue, A extends ReturnTypeFuncValue>(arg1?: ArgsFieldOptions<T, A> | (() => T), arg2?: ArgsFieldOptions<T, A>) {
   const ty = typeof arg1 === 'function' ? arg1 : undefined;
   const options = typeof arg1 === 'object' ? arg1 : arg2 ?? {};
   const fullOptions = { ...options, middleware: [...options?.middleware ?? [], async (ctx: any, next: any) => (await next()) ?? {}] };
   return applyDecorators(
-    ty === undefined ? Field(fullOptions) : Field(ty, fullOptions as any),
+    ty === undefined ? ArgsField(fullOptions) : ArgsField(ty, fullOptions as any),
     Extensions({
       [collectionExtensionName]: {}
     }),

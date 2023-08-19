@@ -1,0 +1,10 @@
+--- "node_modules/@nestjs/graphql/dist/schema-builder/storages/type-metadata.storage copy.js"	2023-08-19 12:51:46.354521649 -0400
++++ node_modules/@nestjs/graphql/dist/schema-builder/storages/type-metadata.storage.js	2023-08-19 12:52:05.346588848 -0400
+@@ -208,6 +208,7 @@
+             .get(item.target)
+             .fields.getAll();
+         fields.forEach((field) => {
++            if (field.methodArgs === undefined)
+             field.methodArgs = this.metadataByTargetCollection
+                 .get(item.target)
+                 .params.getByName(field.name);
