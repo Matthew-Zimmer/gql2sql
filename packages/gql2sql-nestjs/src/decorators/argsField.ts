@@ -103,7 +103,7 @@ export function addArgsFieldMetadata<T extends ReturnTypeFuncValue, A extends Re
       deprecationReason: options.deprecationReason,
       complexity: options.complexity,
       middleware: options.middleware,
-      ...(options.args ? {} : {
+      ...(!options.args ? {} : {
         methodArgs: [{
           index: 0,
           kind: "args",
