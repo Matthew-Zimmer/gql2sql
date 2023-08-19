@@ -40,10 +40,19 @@ type Ingredients {
 }
 
 type Recipe {
-  id: ID!
+  id(args: IDArgs): ID!
   description: String
   creationDate: Date!
   ingredients: Ingredients!
+}
+
+input IDArgs {
+  eq: ID!
+  neq: ID!
+  in: [ID!]!
+  notIn: [ID!]!
+  isNull: Boolean!
+  isNotNull: Boolean!
 }
 
 """summary"""

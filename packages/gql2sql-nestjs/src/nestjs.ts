@@ -1,5 +1,5 @@
 import { applyDecorators } from '@nestjs/common';
-import { Extensions, Field, FieldOptions, Float, ID, InputType, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
+import { ArgsType, Extensions, Field, FieldOptions, Float, ID, InputType, Int, InterfaceType, InterfaceTypeOptions, ObjectType, ObjectTypeOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
 import { aliasExtensionName, collectionExtensionName, interfaceExtensionName, relationExtensionName, tableExtensionName, variantExtensionName } from 'gql2sql';
 
 type Decorator = ReturnType<typeof applyDecorators>
@@ -219,7 +219,7 @@ export class BooleanAggregations {
   min: boolean;
 }
 
-@InputType()
+@ArgsType()
 export class IntArgs {
   @Field(() => Int)
   // @ts-expect-error
@@ -262,7 +262,7 @@ export class IntArgs {
   isNotNull: boolean;
 }
 
-@InputType()
+@ArgsType()
 export class FloatArgs {
   @Field(() => Float)
   // @ts-expect-error
@@ -305,7 +305,7 @@ export class FloatArgs {
   isNotNull: boolean;
 }
 
-@InputType()
+@ArgsType()
 export class IDArgs {
   @Field(() => ID)
   // @ts-expect-error
@@ -332,7 +332,7 @@ export class IDArgs {
   isNotNull: string;
 }
 
-@InputType()
+@ArgsType()
 export class StringArgs {
   @Field(() => String)
   // @ts-expect-error
@@ -367,7 +367,7 @@ export class StringArgs {
   isNotNull: boolean;
 }
 
-@InputType()
+@ArgsType()
 export class BooleanArgs {
   @Field(() => Boolean)
   // @ts-expect-error

@@ -1,10 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
-import { Args, ID, Info, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { Args, Context, ID, Info, Mutation, Parent, Query, ResolveField, Resolver, Subscription } from '@nestjs/graphql';
 import { NewRecipeInput } from './dto/new-recipe.input';
 import { RecipesArgs } from './dto/recipes.args';
 import { Recipe, Recipes } from './models/recipe.model';
 import { RecipesService } from './recipes.service';
 import { GraphQLResolveInfo } from 'graphql';
+import { IDArgs } from 'gql2sql-nestjs';
 
 @Resolver(() => Recipe)
 export class RecipesResolver {
@@ -35,5 +36,10 @@ export class RecipesResolver {
   @Mutation(returns => Boolean)
   async removeRecipe(@Args('id') id: string) {
     return this.recipesService.remove(id);
+  }
+
+  @ResolveField()
+  async id(@Args('args', { nullable: true }) args: IDArgs, @Parent() recipe: Recipe) {
+    return recipe.id;
   }
 }
