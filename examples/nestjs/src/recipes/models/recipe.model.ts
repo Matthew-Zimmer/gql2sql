@@ -5,8 +5,7 @@ import { CollectionField, Relation, Table } from 'gql2sql-nestjs';
 @Table()
 export class Recipe {
   @Field(type => ID)
-  // @ts-expect-error
-  id: string;
+  id?: string;
 
   @Directive('@upper')
   // @ts-expect-error

@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { Args, Context, ID, Info, Mutation, Parent, Query, ResolveField, Resolver, Subscription } from '@nestjs/graphql';
+import { Args, Context, Field, ID, Info, Mutation, Parent, Query, ResolveField, Resolver, Subscription } from '@nestjs/graphql';
 import { NewRecipeInput } from './dto/new-recipe.input';
 import { RecipesArgs } from './dto/recipes.args';
 import { Recipe, Recipes } from './models/recipe.model';
@@ -7,9 +7,19 @@ import { RecipesService } from './recipes.service';
 import { GraphQLResolveInfo } from 'graphql';
 import { IDArgs } from 'gql2sql-nestjs';
 
+
+function Filters<T>(f: new () => T) {
+  const x = Object.getOwnPropertyNames(new f());
+
+  console.log(new f());
+  console.log(x);
+
+  return class { };
+}
+
 @Resolver(() => Recipe)
-export class RecipesResolver {
-  constructor(private readonly recipesService: RecipesService) { }
+export class RecipesResolver extends Filters(Recipe) {
+  constructor(private readonly recipesService: RecipesService) { super(); }
 
   @Query(returns => Recipe)
   async recipe(@Args('id') id: string) {
@@ -43,3 +53,4 @@ export class RecipesResolver {
     return recipe.id;
   }
 }
+

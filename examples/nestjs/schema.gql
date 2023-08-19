@@ -40,7 +40,7 @@ type Ingredients {
 }
 
 type Recipe {
-  id(eq: ID!, neq: ID!, in: [ID!]!, notIn: [ID!]!, isNull: Boolean!, isNotNull: Boolean!): ID!
+  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
   description: String
   creationDate: Date!
   ingredients: Ingredients!
