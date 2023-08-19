@@ -7,19 +7,9 @@ import { RecipesService } from './recipes.service';
 import { GraphQLResolveInfo } from 'graphql';
 import { IDArgs } from 'gql2sql-nestjs';
 
-
-function Filters<T>(f: new () => T) {
-  const x = Object.getOwnPropertyNames(new f());
-
-  console.log(new f());
-  console.log(x);
-
-  return class { };
-}
-
 @Resolver(() => Recipe)
-export class RecipesResolver extends Filters(Recipe) {
-  constructor(private readonly recipesService: RecipesService) { super(); }
+export class RecipesResolver {
+  constructor(private readonly recipesService: RecipesService) { }
 
   @Query(returns => Recipe)
   async recipe(@Args('id') id: string) {
