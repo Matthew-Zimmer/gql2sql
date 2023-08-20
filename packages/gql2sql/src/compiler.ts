@@ -739,40 +739,53 @@ export namespace Field {
       ];
 
       const fullDetails: SQL.ExpressionNode = {
-        kind: 'ApplicationExpressionNode',
+        kind: "ApplicationExpressionNode",
         func: {
-          kind: 'RawExpressionNode',
-          value: 'array_agg'
+          kind: "RawExpressionNode",
+          value: "coalesce"
         },
         args: [
-          variants.length === 0 ? wrap(nonVariantDetails) :
-            variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
-              {
-                kind: "CaseExpressionNode",
-                whens: variants.map<SQL.WhenExpressionNode>(variant => ({
-                  kind: "WhenExpressionNode",
-                  cond: {
-                    kind: "BinaryOpExpressionNode",
-                    op: "=",
-                    left: {
-                      kind: "DotExpressionNode",
-                      left: {
-                        kind: "IdentifierExpressionNode",
-                        name: tables.baseTable,
+          {
+            kind: 'ApplicationExpressionNode',
+            func: {
+              kind: 'RawExpressionNode',
+              value: 'array_agg'
+            },
+            args: [
+              variants.length === 0 ? wrap(nonVariantDetails) :
+                variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
+                  {
+                    kind: "CaseExpressionNode",
+                    whens: variants.map<SQL.WhenExpressionNode>(variant => ({
+                      kind: "WhenExpressionNode",
+                      cond: {
+                        kind: "BinaryOpExpressionNode",
+                        op: "=",
+                        left: {
+                          kind: "DotExpressionNode",
+                          left: {
+                            kind: "IdentifierExpressionNode",
+                            name: tables.baseTable,
+                          },
+                          right: {
+                            kind: "IdentifierExpressionNode",
+                            name: variant.tag.column,
+                          },
+                        },
+                        right: {
+                          kind: "StringExpressionNode",
+                          value: variant.tag.value
+                        },
                       },
-                      right: {
-                        kind: "IdentifierExpressionNode",
-                        name: variant.tag.column,
-                      },
-                    },
-                    right: {
-                      kind: "StringExpressionNode",
-                      value: variant.tag.value
-                    },
-                  },
-                  value: wrapVariant(nonVariantDetails, variant),
-                })),
-              }
+                      value: wrapVariant(nonVariantDetails, variant),
+                    })),
+                  }
+            ]
+          },
+          {
+            kind: "RawExpressionNode",
+            value: "array []::json[]"
+          }
         ]
       };
 

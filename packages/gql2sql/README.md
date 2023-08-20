@@ -13,7 +13,7 @@
 - [x] support total-count agg
 - [x] support enum filters
 - [x] remove implicit variant filtering
-- [] support coalesce details to empty array when no data
+- [x] support coalesce details to empty array when no data
 
 - [ ] support summaries over enums
 - [ ] support nested summaries
