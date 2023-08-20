@@ -10,7 +10,7 @@
 - [x] support not like filter
 - [x] support ilike filter
 - [x] support not ilike filter
-- [ ] support total-count agg
+- [x] support total-count agg
 - [ ] support enum filters
 - [ ] support enum summaries
 - [ ] support date filters

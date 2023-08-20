@@ -262,6 +262,22 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
   const defaultSummaryHandlerExtension: SummaryHandlerExtension = {
     handler: (selection, subSelection, type) => {
+      if (selection.name.value === 'total') {
+        return {
+          kind: "SummaryField",
+          aggregation: "count",
+          field: {
+            kind: "DetailField",
+            name: "1",
+            alias: "1",
+            conditions: [],
+            hasOptionalConditions: false,
+            skip: false,
+            sorts: [],
+            raw: true,
+          }
+        };
+      }
       return {
         kind: 'SummaryField',
         aggregation: subSelection.name.value as Field.Aggregation,
