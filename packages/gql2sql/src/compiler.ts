@@ -1497,7 +1497,7 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
       if (n.value instanceof TrustedInput)
         value = builder.raw(n.value.value);
       else if (n.value instanceof CastedParameter)
-        value = builder.sql`${n.value}::${builder.raw(n.value.type)}`;
+        value = builder.sql`${n.value}::"${builder.raw(n.value.type)}"`;
       else if (Array.isArray(n.value)) {
         if (n.value.length > 0)
           value = builder.sql`(${builder.join(n.value.map(x => builder.sql`${x}`), ',')})`;
