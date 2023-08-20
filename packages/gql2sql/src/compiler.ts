@@ -112,6 +112,12 @@ const filterNames = {
   'gt': '>',
   'in': 'in',
   'notIn': 'not in',
+  'isNull': 'is',
+  'isNotNull': 'is not',
+  'like': 'like',
+  'notLike': 'not like',
+  'ilike': 'ilike',
+  'notIlike': 'not ilike',
 } as const;
 
 type PrimitiveValueType =
@@ -1323,6 +1329,10 @@ export namespace SQL {
     | 'is not'
     | 'in'
     | 'not in'
+    | 'like'
+    | 'not like'
+    | 'ilike'
+    | 'not ilike'
 
   export interface SortNode {
     kind: "SortNode";
@@ -1468,7 +1478,6 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
 
       return builder.sql`${generateColumnNode(n.column)} ${builder.raw(n.op)} ${value}`;
     };
-
 
     const generateSortNode = (n: SortNode): T => {
       return builder.sql`${generateColumnNode(n.column)} ${builder.raw(n.op)}`;

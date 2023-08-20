@@ -6,10 +6,10 @@
 - [x] support stdp aggregation
 - [x] support var aggregation
 - [x] support varp aggregation
-- [ ] support like filter
-- [ ] support not like filter
-- [ ] support ilike filter
-- [ ] support not ilike filter
+- [x] support like filter
+- [x] support not like filter
+- [x] support ilike filter
+- [x] support not ilike filter
 - [ ] support total-count agg
 - [ ] support enum filters
 - [ ] support enum summaries
