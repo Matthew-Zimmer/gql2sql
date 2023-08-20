@@ -12,7 +12,7 @@
 - [x] support not ilike filter
 - [x] support total-count agg
 - [x] support enum filters
-- [x] remove implicit variant filtering
+- [x] ~~remove implicit variant filtering~~
 - [x] support coalesce details to empty array when no data
 
 - [ ] support summaries over enums
