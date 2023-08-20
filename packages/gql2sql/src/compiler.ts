@@ -885,23 +885,6 @@ export namespace Field {
     }
 
     const createWhereConditions = (base: SQL.WhereNode[], variants: VariantMetaInfo[], tables: { baseTable: string, innerTable: string }): SQL.WhereNode | undefined => {
-      const variantConds = (v: VariantMetaInfo): SQL.WhereNode[] => v.conditions;
-
-      const conds = (
-        variants.length === 0 ? base :
-          variants.length === 1 ? [...base, ...variantConds(variants[0])] :
-            [
-              ...base,
-              mergeWhereConditions(variants.map<SQL.WhereNode>(v =>
-                mergeWhereConditions(variantConds(v), 'and')
-              ), 'or')
-            ]
-      );
-
-      return conds.length === 0 ? undefined : mergeWhereConditions(conds, 'and');
-    }
-
-    const createWhereConditionsWithImplicitVariantFilters = (base: SQL.WhereNode[], variants: VariantMetaInfo[], tables: { baseTable: string, innerTable: string }): SQL.WhereNode | undefined => {
       const tagCond = (v: VariantMetaInfo): SQL.WhereNode => ({
         kind: "WhereCompareNode",
         column: {
