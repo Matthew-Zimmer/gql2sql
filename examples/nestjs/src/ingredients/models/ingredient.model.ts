@@ -19,6 +19,9 @@ export class IngredientKindArgs {
 
   @Field(() => [IngredientKind], { nullable: true })
   notIn?: IngredientKind;
+
+  @Field(() => Boolean, { nullable: true })
+  opt?: boolean;
 }
 
 @Variant()

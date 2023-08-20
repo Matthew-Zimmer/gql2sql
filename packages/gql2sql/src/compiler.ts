@@ -1491,26 +1491,26 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
       return builder.sql`(${generateWhereNode(n.left)}) ${builder.raw(n.op)} (${generateWhereNode(n.right)})`
     };
 
-    const generateWhereCompareNode = (n: WhereCompareNode): T => {
-      let value: T | undefined = undefined;
-
-      if (n.value instanceof TrustedInput)
-        value = builder.raw(n.value.value);
-      else if (n.value instanceof CastedParameter)
-        value = builder.sql`${n.value.parameter}::"${builder.raw(n.value.type)}"`;
-      else if (Array.isArray(n.value)) {
-        if (n.value.length > 0)
-          value = builder.sql`(${builder.join(n.value.map(x => builder.sql`${x}`), ',')})`;
+    const whereValue = (value: any): T | undefined => {
+      if (value instanceof TrustedInput)
+        return builder.raw(value.value);
+      else if (value instanceof CastedParameter)
+        return builder.sql`${value.parameter}::"${builder.raw(value.type)}"`;
+      else if (Array.isArray(value)) {
+        const subValues = value.map(whereValue).filter(x => x !== undefined);
+        return subValues.length === 0 ? undefined : builder.sql`(${builder.join(subValues, ',')})`;
       }
-      else if (n.value === 'null')
-        value = builder.raw('null');
+      else if (value === 'null')
+        return builder.raw('null');
+      else if (value !== undefined)
+        return builder.sql`${value}`;
       else
-        value = builder.sql`${n.value}`;
+        return undefined;
+    }
 
-      if (!value)
-        return builder.empty;
-
-      return builder.sql`${generateColumnNode(n.column)} ${builder.raw(n.op)} ${value}`;
+    const generateWhereCompareNode = (n: WhereCompareNode): T => {
+      const value = whereValue(n.value);
+      return !value ? builder.empty : builder.sql`${generateColumnNode(n.column)} ${builder.raw(n.op)} ${value}`;
     };
 
     const generateSortNode = (n: SortNode): T => {

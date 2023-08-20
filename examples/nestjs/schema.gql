@@ -7,7 +7,7 @@ directive @upper on FIELD_DEFINITION
 interface Ingredient {
   id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
   name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
-  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!]): IngredientKind!
+  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
 }
 
 enum IngredientKind {
@@ -29,14 +29,14 @@ type StringAggregations {
 type SolidIngredient implements Ingredient {
   id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
   name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
-  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!]): IngredientKind!
+  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
   quantity(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
 }
 
 type LiquidIngredient implements Ingredient {
   id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
   name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
-  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!]): IngredientKind!
+  kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
   amount(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
 }
 
