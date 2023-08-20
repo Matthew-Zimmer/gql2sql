@@ -3,6 +3,7 @@ import {
   BooleanValueNode,
   FieldNode,
   FloatValueNode,
+  GraphQLInputType,
   GraphQLInterfaceType,
   GraphQLList,
   GraphQLNonNull,
@@ -10,6 +11,7 @@ import {
   GraphQLResolveInfo,
   GraphQLType,
   IntValueNode,
+  isEnumType,
   isInterfaceType,
   isListType,
   isNonNullType,
@@ -189,7 +191,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           if (name === "__typename")
             break;
           const field = type.getFields()[name];
-          const { extensions, type: fieldType } = field;
+          const { extensions, type: fieldType, args } = field;
 
           if (relationExtensionName in extensions) {
             const relation = getExtension(extensions, relationExtensionName);
@@ -381,8 +383,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
   const createDetailField = (x: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType): Field.DetailField => {
     const name = x.name.value;
-    const { extensions } = type.getFields()[name];
-    const [sorts, conditions] = sortAndFilterConditionsFromArgs(x.arguments ?? []);
+    const { extensions, args } = type.getFields()[name];
+    const [sorts, conditions] = sortAndFilterConditionsFromArgs(x.arguments ?? [], args.map(x => x.type));
     const skip = isSkipped(x);
 
     return {
@@ -396,11 +398,12 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     };
   }
 
-  const sortAndFilterConditionsFromArgs = (args: readonly ArgumentNode[]): [Field.FieldSortCondition[], Field.FieldFilterCondition[]] => {
+  const sortAndFilterConditionsFromArgs = (args: readonly ArgumentNode[], argsTypes: GraphQLInputType[]): [Field.FieldSortCondition[], Field.FieldFilterCondition[]] => {
     const sorts: Field.FieldSortCondition[] = [];
     const filters: Field.FieldFilterCondition[] = [];
 
-    for (const arg of args) {
+    for (const [i, arg] of args.entries()) {
+      const type = argsTypes[i];
       const name = arg.name.value;
       if (name === 'sort') {
         let value: string | undefined = undefined;
@@ -422,7 +425,17 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
         }
       }
       else if (name in filterNames) {
-        const value: any | undefined = resolveValue(arg.value);
+        let value: any | undefined = resolveValue(arg.value);
+
+        if (isEnumType(type)) {
+          const { name } = type;
+          if (Array.isArray(value)) {
+            value = value.map(x => new SQL.CastedParameter(x, name));
+          }
+          else if (value !== undefined) {
+            value = new SQL.CastedParameter(value, name);
+          }
+        }
 
         if (value !== null && value !== undefined)
           filters.push({
@@ -1204,6 +1217,10 @@ export namespace SQL {
     constructor(public value: string) { }
   }
 
+  export class CastedParameter {
+    constructor(public parameter: any, public type: string) { }
+  }
+
   export interface SelectNode {
     kind: "SelectNode";
     columns: ColumnNode[];
@@ -1479,6 +1496,8 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
 
       if (n.value instanceof TrustedInput)
         value = builder.raw(n.value.value);
+      else if (n.value instanceof CastedParameter)
+        value = builder.sql`${n.value}::${builder.raw(n.value.type)}`;
       else if (Array.isArray(n.value)) {
         if (n.value.length > 0)
           value = builder.sql`(${builder.join(n.value.map(x => builder.sql`${x}`), ',')})`;
