@@ -1,10 +1,25 @@
-import { Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { ArgsType, Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IngredientKind } from '@prisma/client';
 import { ArgsField, ArrayAggregations, BooleanArgs, FloatField, IdField, StringAggregations, StringField, Variant, VariantOf } from 'gql2sql-nestjs';
 
 registerEnumType(IngredientKind, {
   name: 'IngredientKind',
 });
+
+@ArgsType()
+export class IngredientKindArgs {
+  @Field(() => IngredientKind, { nullable: true })
+  eq?: IngredientKind;
+
+  @Field(() => IngredientKind, { nullable: true })
+  neq?: IngredientKind;
+
+  @Field(() => [IngredientKind], { nullable: true })
+  in?: IngredientKind;
+
+  @Field(() => [IngredientKind], { nullable: true })
+  notIn?: IngredientKind;
+}
 
 @Variant()
 export abstract class Ingredient {
@@ -15,7 +30,7 @@ export abstract class Ingredient {
   name?: string;
 
   // TODO think about how to filter enums
-  @ArgsField(() => IngredientKind, { args: () => BooleanArgs })
+  @ArgsField(() => IngredientKind, { args: () => IngredientKindArgs })
   kind?: IngredientKind;
 }
 

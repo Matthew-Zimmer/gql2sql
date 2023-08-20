@@ -1,6 +1,26 @@
-import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
+import { ArgsType, Directive, Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
-import { ArrayAggregations, CollectionField, IdField, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
+import { ArgsField, ArrayAggregations, CollectionField, IdField, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
+import { RecipeDifficulty } from '@prisma/client';
+
+registerEnumType(RecipeDifficulty, {
+  name: "RecipeDifficulty"
+});
+
+@ArgsType()
+export class RecipeDifficultyArgs {
+  @Field(() => RecipeDifficulty, { nullable: true })
+  eq?: RecipeDifficulty;
+
+  @Field(() => RecipeDifficulty, { nullable: true })
+  neq?: RecipeDifficulty;
+
+  @Field(() => [RecipeDifficulty], { nullable: true })
+  in?: RecipeDifficulty;
+
+  @Field(() => [RecipeDifficulty], { nullable: true })
+  notIn?: RecipeDifficulty;
+}
 
 @Table()
 export class Recipe {
@@ -16,6 +36,9 @@ export class Recipe {
   @Field()
   // @ts-expect-error
   creationDate: Date;
+
+  @ArgsField(() => RecipeDifficulty, { args: () => RecipeDifficultyArgs })
+  difficulty?: RecipeDifficulty;
 
   @Relation('id', 'RecipeToIngredient', 'recipeId', 'ingredientId', 'Ingredient', 'id')
   @CollectionField()

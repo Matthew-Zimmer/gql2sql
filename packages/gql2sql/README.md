@@ -11,7 +11,7 @@
 - [x] support ilike filter
 - [x] support not ilike filter
 - [x] support total-count agg
-- [ ] support enum filters
+- [x] support enum filters
 - [ ] support enum summaries
 - [ ] support date filters
 

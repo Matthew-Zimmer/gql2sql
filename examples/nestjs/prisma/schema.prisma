@@ -7,11 +7,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum RecipeDifficulty {
+  easy
+  medium
+  hard
+}
+
 model Recipe {
   id           String               @id
   title        String
   description  String?
   creationDate DateTime
+  difficulty   RecipeDifficulty     @default(easy)
   ingredients  RecipeToIngredient[]
 }
 

@@ -126,18 +126,6 @@ type PrimitiveValueType =
   | FloatValueNode
   | StringValueNode
 
-const isPrimitiveValueType = (n: ValueNode): n is PrimitiveValueType => {
-  switch (n.kind) {
-    case Kind.BOOLEAN:
-    case Kind.INT:
-    case Kind.FLOAT:
-    case Kind.STRING:
-      return true;
-    default:
-      return false;
-  }
-}
-
 const toSqlLike = (x: any, nested?: boolean): any => {
   switch (typeof x) {
     case 'boolean':
@@ -392,6 +380,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
         return value.values.map(resolveValue);
       case Kind.VARIABLE:
         return lookupVariable(value.name.value);
+      case Kind.ENUM:
+        return value.value;
     }
   }
 
@@ -438,22 +428,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
         }
       }
       else if (name in filterNames) {
-        let value: any | undefined = undefined;
-
-        switch (arg.value.kind) {
-          case Kind.INT:
-          case Kind.BOOLEAN:
-          case Kind.FLOAT:
-          case Kind.STRING:
-            value = arg.value.value;
-            break;
-          case Kind.LIST:
-            value = arg.value.values.filter(isPrimitiveValueType).map(x => x.value);
-            break;
-          case Kind.VARIABLE:
-            value = lookupVariableToSqlLike(arg.value.name.value);
-            break;
-        }
+        const value: any | undefined = resolveValue(arg.value);
 
         if (value !== null && value !== undefined)
           filters.push({
