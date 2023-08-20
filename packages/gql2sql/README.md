@@ -12,13 +12,15 @@
 - [x] support not ilike filter
 - [x] support total-count agg
 - [x] support enum filters
-- [ ] support enum summaries
-- [ ] support date filters
+- [x] remove implicit variant filtering
+- [] support coalesce details to empty array when no data
 
+- [ ] support summaries over enums
 - [ ] support nested summaries
 - [ ] support variant summaries
-- [ ] remove implicit variant filtering
+
 - [ ] support summary filters
 - [ ] support summary ordering
 - [ ] support nested limit
+- [ ] support date filters
 

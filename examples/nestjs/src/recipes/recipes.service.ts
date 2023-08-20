@@ -3,7 +3,7 @@ import { NewRecipeInput } from './dto/new-recipe.input';
 import { RecipesArgs } from './dto/recipes.args';
 import { Recipe } from './models/recipe.model';
 import { PrismaService } from '../prisma.service';
-import { generateFieldFromQuery, prepareSQLForQuery } from 'gql2sql';
+import { Field, generateFieldFromQuery, prepareSQLForQuery } from 'gql2sql';
 import { GraphQLResolveInfo } from 'graphql';
 import { Prisma } from '@prisma/client';
 import { inspect } from 'util';
@@ -15,11 +15,9 @@ export class RecipesService {
   constructor(private prisma: PrismaService) { }
 
   async select(info: GraphQLResolveInfo): Promise<any> {
-    const field = generateFieldFromQuery(info);
-
-    console.log(inspect(field, false, null, true));
-
-
+    // const field = generateFieldFromQuery(info);
+    // const select = Field.generate(field);
+    // console.log(inspect(select, false, null, true));
     const query = prepareSQLForQuery(Prisma, info);
     //console.log(query.text);
     const [{ root }] = await this.prisma.$queryRaw<[any]>(query);
