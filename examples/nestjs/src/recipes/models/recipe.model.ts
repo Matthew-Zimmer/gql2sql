@@ -1,19 +1,17 @@
 import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
-import { Ingredients } from '../../ingredients/models/ingredient.model';
-import { CollectionField, Relation, Table } from 'gql2sql-nestjs';
+import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
+import { ArrayAggregations, CollectionField, IdField, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 
 @Table()
 export class Recipe {
-  @Field(type => ID)
+  @IdField({})
   id?: string;
 
-  @Directive('@upper')
-  // @ts-expect-error
-  title: string;
+  @StringField({})
+  title?: string;
 
-  @Field(() => String, { nullable: true })
-  // @ts-expect-error
-  description: string | null;
+  @StringField({ nullable: true })
+  description?: string | null;
 
   @Field()
   // @ts-expect-error
@@ -25,17 +23,40 @@ export class Recipe {
   ingredients: Ingredients;
 }
 
+@ObjectType()
+class NestedIngredientsSummary {
+  @Field(() => IngredientsSummary)
+  sum?: IngredientsSummary;
+  @Field(() => IngredientsSummary)
+  avg?: IngredientsSummary;
+  @Field(() => IngredientsSummary)
+  count?: IngredientsSummary;
+  @Field(() => IngredientsSummary)
+  std?: IngredientsSummary;
+  @Field(() => IngredientsSummary)
+  max?: IngredientsSummary;
+  @Field(() => IngredientsSummary)
+  min?: IngredientsSummary;
+}
+
 @ObjectType({ description: 'summary' })
 export class RecipesSummary {
-  @Field(() => String)
-  dummy?: string;
+  // this needs to be implemented!! in gql2sql
+  @Field(() => ArrayAggregations)
+  total?: ArrayAggregations;
+
+  @Field(() => StringAggregations)
+  title?: StringAggregations;
+
+  @Field(() => NestedIngredientsSummary)
+  ingredients?: NestedIngredientsSummary;
 }
 
 @ObjectType()
 export class Recipes {
   @Field(type => RecipesSummary, { defaultValue: {} })
   // @ts-expect-error
-  id: string;
+  summary: RecipesSummary;
 
   @Field(() => [Recipe], { defaultValue: [] })
   // @ts-expect-error

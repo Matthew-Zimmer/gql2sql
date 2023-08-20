@@ -5,9 +5,9 @@
 directive @upper on FIELD_DEFINITION
 
 interface Ingredient {
-  id: ID!
-  name: String!
-  kind: IngredientKind!
+  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
+  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  kind(eq: Boolean, neq: Boolean, in: [Boolean!], notIn: [Boolean!], isNull: Boolean, isNotNull: Boolean): IngredientKind!
 }
 
 enum IngredientKind {
@@ -15,44 +15,68 @@ enum IngredientKind {
   LiquidIngredient
 }
 
+type ArrayAggregations {
+  count: Int!
+}
+
+type StringAggregations {
+  count: Int!
+  distinct: [String!]!
+  max: String!
+  min: String!
+}
+
 type SolidIngredient implements Ingredient {
-  id: ID!
-  name: String!
-  kind: IngredientKind!
-  quantity: Int!
+  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
+  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  kind(eq: Boolean, neq: Boolean, in: [Boolean!], notIn: [Boolean!], isNull: Boolean, isNotNull: Boolean): IngredientKind!
+  quantity(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
 }
 
 type LiquidIngredient implements Ingredient {
-  id: ID!
-  name: String!
-  kind: IngredientKind!
-  amount: Float!
+  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
+  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  kind(eq: Boolean, neq: Boolean, in: [Boolean!], notIn: [Boolean!], isNull: Boolean, isNotNull: Boolean): IngredientKind!
+  amount(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
 }
 
 """summary"""
 type IngredientsSummary {
-  dummy: String!
+  total: ArrayAggregations!
+  name: StringAggregations!
 }
 
 type Ingredients {
-  id: IngredientsSummary!
+  summary: IngredientsSummary!
   details: [Ingredient!]!
 }
 
 type Recipe {
   id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
-  description: String
+  title(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  description(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String
   creationDate: Date!
   ingredients: Ingredients!
 }
 
+type NestedIngredientsSummary {
+  sum: IngredientsSummary!
+  avg: IngredientsSummary!
+  count: IngredientsSummary!
+  std: IngredientsSummary!
+  max: IngredientsSummary!
+  min: IngredientsSummary!
+}
+
 """summary"""
 type RecipesSummary {
-  dummy: String!
+  total: ArrayAggregations!
+  title: StringAggregations!
+  ingredients: NestedIngredientsSummary!
 }
 
 type Recipes {
-  id: RecipesSummary!
+  summary: RecipesSummary!
   details: [Recipe!]!
 }
 

@@ -521,6 +521,10 @@ export namespace Field {
     | 'max'
     | 'min'
     | 'avg'
+    | 'std'
+    | 'stdp'
+    | 'var'
+    | 'varp'
 
   export interface DetailField {
     kind: "DetailField";
@@ -947,6 +951,25 @@ export namespace Field {
       return [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }, whereNodes, sortNodes];
     };
 
+    const translateAggregationToSql = (agg: Field.Aggregation): string => {
+      switch (agg) {
+        case 'sum':
+        case 'count':
+        case 'max':
+        case 'min':
+        case 'avg':
+          return agg;
+        case 'std':
+          return 'stddev_samp';
+        case 'stdp':
+          return 'stddev_pop';
+        case 'var':
+          return 'var_samp';
+        case 'varp':
+          return 'var_pop';
+      }
+    }
+
     const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
       const [col, whereNodes, sortNodes] = generateDetailField(x.field, rawTable, table);
 
@@ -961,7 +984,7 @@ export namespace Field {
             },
             args: [
               { kind: 'StringExpressionNode', value: x.aggregation },
-              { kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: x.aggregation }, args: [col[1]] }
+              { kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: translateAggregationToSql(x.aggregation) }, args: [col[1]] }
             ]
           }
         ],

@@ -37,10 +37,5 @@ export class RecipesResolver {
   async removeRecipe(@Args('id') id: string) {
     return this.recipesService.remove(id);
   }
-
-  @ResolveField()
-  async id(@Args() args: IDArgs, @Parent() recipe: Recipe) {
-    return recipe.id;
-  }
 }
 
