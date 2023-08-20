@@ -252,8 +252,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           aggregation: "count",
           field: {
             kind: "DetailField",
-            name: "1",
-            alias: "1",
+            name: "total",
+            alias: "total",
             conditions: [],
             hasOptionalConditions: false,
             skip: false,
