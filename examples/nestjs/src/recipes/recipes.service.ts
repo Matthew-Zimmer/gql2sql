@@ -3,7 +3,7 @@ import { NewRecipeInput } from './dto/new-recipe.input';
 import { RecipesArgs } from './dto/recipes.args';
 import { Recipe } from './models/recipe.model';
 import { PrismaService } from '../prisma.service';
-import { Field, generateFieldFromQuery, prepareSQLForQuery } from 'gql2sql';
+import { Field, generateFieldFromQuery, prepareSQLForQuery } from '../gql2sql';
 import { GraphQLResolveInfo } from 'graphql';
 import { Prisma } from '@prisma/client';
 import { inspect } from 'util';

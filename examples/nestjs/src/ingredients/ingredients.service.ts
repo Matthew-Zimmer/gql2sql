@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Ingredient } from './models/ingredient.model';
 import { PrismaService } from '../prisma.service';
-import { prepareSQLForQuery } from 'gql2sql';
+import { prepareSQLForQuery } from '../gql2sql';
 import { GraphQLResolveInfo } from 'graphql';
 import { Prisma } from '@prisma/client';
 import { NewIngredientInput } from './dto/new-ingredient.input';

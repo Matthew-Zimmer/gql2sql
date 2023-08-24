@@ -1,3 +1,4 @@
+import { inspect } from 'util';
 import {
   ArgumentNode,
   BooleanValueNode,
@@ -24,7 +25,9 @@ import {
 
 export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLResolveInfo): T => {
   const collection = generateFieldFromQuery(info);
+  console.log("const collection =", inspect(collection, false, null));
   const select = Field.generate(collection);
+  //console.log("select", inspect(collection, false, null));
   const query = SQL.generate(builder, select);
   return query;
 }
@@ -116,6 +119,18 @@ const filterNames = {
   'notIlike': 'not ilike',
 } as const;
 
+const aggNames = [
+  'count',
+  'max',
+  'min',
+  'sum',
+  'avg',
+  'std',
+  'stdp',
+  'var',
+  'varp',
+];
+
 const toSqlLike = (x: any, nested?: boolean): any => {
   switch (typeof x) {
     case 'boolean':
@@ -148,7 +163,201 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return toSqlLike(lookupVariable(name));
   }
 
-  const mergeRelations = (...relations: Field.RelationField[][]): Field.RelationField[] => {
+  // RFC should the booleans be combined with an `or` or an `and`?
+  const mergeDetail = (d1: Field.DetailField, d2: Field.DetailField): Field.DetailField => {
+    return {
+      kind: "DetailField",
+      alias: d1.alias,
+      name: d1.name,
+      conditions: d1.conditions,
+      sorts: d1.sorts,
+      hasOptionalConditions: d1.hasOptionalConditions || d2.hasOptionalConditions,
+      skip: d1.skip || d2.skip,
+      raw: d1.raw || d2.raw,
+    };
+  };
+
+  function unique<T>(...groups: T[][]): T[] {
+    const res: T[] = [];
+    for (const group of groups) {
+      for (const g of group) {
+        if (!res.includes(g))
+          res.push(g);
+      }
+    }
+    return res;
+  }
+
+  // ASSUME same kind
+  // ASSUME leafs cannot be merged
+  const mergeSummary = (s1: Field.SummaryField, s2: Field.SummaryField): Field.SummaryField => {
+    if (s1.kind === 'LeafSummaryField') {
+      return s1;
+    }
+    else {
+      const s3 = s2 as Field.NodeSummaryField;
+      return {
+        kind: "NodeSummaryField",
+        alias: s1.alias,
+        fields: mergeSummaries(s1.fields, s3.fields),
+      };
+    }
+  };
+
+  // ASSUME same childId, parentId, table, tag
+  const mergeVariant = (v1: Field.VariantField, v2: Field.VariantField): Field.VariantField => {
+    return {
+      kind: "VariantField",
+      childId: v1.childId,
+      parentId: v1.parentId,
+      table: v1.table,
+      tag: v1.tag,
+      relations: mergeRelations(v1.relations, v2.relations),
+      details: mergeDetails(v1.details, v2.details),
+    };
+  };
+
+  const mergeMaybes = <T>(o1: T | undefined, o2: T | undefined, merge: (a: T, b: T) => T): T | undefined => {
+    return o1 && o2 ? merge(o1, o2) : (o1 ? o1 : o2);
+  }
+
+  const onlyIfSame = <T>(o1: T, o2: T): T => {
+    return o1 === o2 ? o1 : (() => { throw new Error(`During merge expected ${o1} to equal ${o2}`) })();
+  }
+
+  const mergePagination = (p1?: Field.PaginationField, p2?: Field.PaginationField): Field.PaginationField | undefined => {
+    return mergeMaybes(p1, p2, (p1, p2) => ({
+      kind: "PaginationField",
+      limit: mergeMaybes(p1.limit, p2.limit, onlyIfSame),
+      offset: mergeMaybes(p1.offset, p2.offset, onlyIfSame),
+    }));
+  };
+
+  const mergeDetails = (...groups: Field.DetailField[][]): Field.DetailField[] => {
+    const merged: Field.DetailField[] = [];
+
+    for (const details of groups) {
+      for (const detail of details) {
+        const hit = merged.findIndex(x => x.name === detail.name);
+        if (hit === -1) {
+          merged.push(detail);
+        }
+        else {
+          merged[hit] = mergeDetail(merged[hit], detail);
+        }
+      }
+    }
+
+    return merged;
+  };
+
+  const mergeSummaries = (...groups: Field.SummaryField[][]): Field.SummaryField[] => {
+    const merged: Field.SummaryField[] = [];
+
+    for (const summaries of groups) {
+      for (const summary of summaries) {
+        const hit = merged.findIndex(x => x.alias === summary.alias);
+        if (hit === -1) {
+          merged.push(summary);
+        }
+        else {
+          merged[hit] = mergeSummary(merged[hit], summary);
+        }
+      }
+    }
+
+    return merged;
+  };
+
+  const mergeVariants = (...groups: Field.VariantField[][]): Field.VariantField[] => {
+    const merged: Field.VariantField[] = [];
+
+    for (const variants of groups) {
+      for (const variant of variants) {
+        const hit = merged.findIndex(x => x.table === variant.table);
+        if (hit === -1) {
+          merged.push(variant);
+        }
+        else {
+          merged[hit] = mergeVariant(merged[hit], variant);
+        }
+      }
+    }
+
+    return merged;
+  };
+
+  const mergeRawColumns = (...groups: SQL.ColumnNode[][]): SQL.ColumnNode[] => {
+    const merged: SQL.ColumnNode[] = [];
+
+    for (const rawColumns of groups) {
+      for (const rawColumn of rawColumns) {
+        merged.push(rawColumn);
+      }
+    }
+
+    return merged;
+  };
+
+  // ASSUME name, table, tagColumn are the same
+  const mergeCollectionField = (f1: Field.CollectionField, f2: Field.CollectionField): Field.CollectionField => {
+    return {
+      kind: "Collection",
+      name: f1.name,
+      skip: f1.skip && f2.skip,
+      table: f1.table,
+      details: mergeDetails(f1.details, f2.details),
+      summaries: mergeSummaries(f1.summaries, f2.summaries),
+      relations: mergeRelations(f1.relations, f2.relations),
+      variants: mergeVariants(f1.variants, f2.variants),
+      rawColumns: mergeRawColumns(f1.rawColumns, f2.rawColumns),
+      pagination: mergePagination(f1.pagination, f2.pagination),
+      tagColumn: f1.tagColumn
+    };
+  }
+
+  // ASSUME name, table are the same
+  const mergeEntityField = (f1: Field.EntityField, f2: Field.EntityField): Field.EntityField => {
+    return {
+      kind: "EntityField",
+      name: f1.name,
+      skip: f1.skip && f2.skip,
+      table: f1.table,
+      details: mergeDetails(f1.details, f2.details),
+      relations: mergeRelations(f1.relations, f2.relations),
+      variants: mergeVariants(f1.variants, f2.variants),
+    };
+  }
+
+  // ASSUME relation info is always the same!
+  // ASSUME field kind is always the same!
+  const mergeRelation = (r1: Field.RelationField, r2: Field.RelationField): Field.RelationField => {
+    const field = r1.field.kind === 'Collection' ? mergeCollectionField(r1.field, r2.field as Field.CollectionField) : mergeEntityField(r1.field, r2.field as Field.EntityField);
+
+    return {
+      kind: "RelationField",
+      relation: r1.relation,
+      field,
+    };
+  };
+
+  const mergeRelations = (...relationGroups: Field.RelationField[][]): Field.RelationField[] => {
+    const x: Field.RelationField[] = [];
+
+    for (const relations of relationGroups) {
+      for (const r of relations) {
+        const { table } = r.field;
+        const matchingIdx = x.findIndex(x => x.field.table === table);
+        if (matchingIdx === -1) {
+          x.push(r);
+        }
+        else {
+          x[matchingIdx] = mergeRelation(x[matchingIdx], r);
+        }
+      }
+    }
+
+    return x;
   }
 
   const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[], Field.VariantField[]] => {
@@ -178,6 +387,17 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return [details, summaries, relations, variants];
   };
 
+  const makeRelation = (ext: Extensions['relation']): Field.Relation => {
+    return ext.length === 1 ? {
+      kind: 'DirectRelation',
+      ...ext[0]
+    } : {
+      kind: 'JunctionRelation',
+      toJunction: { kind: 'DirectRelation', ...ext[0] },
+      fromJunction: { kind: 'DirectRelation', ...ext[1] },
+    };
+  }
+
   const visitDetailSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType | GraphQLInterfaceType): [Field.DetailField[], Field.RelationField[], Field.VariantField[]] => {
     let details: Field.DetailField[] = [];
     let relations: Field.RelationField[] = [];
@@ -199,14 +419,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
             relations.push({
               kind: 'RelationField',
-              relation: relation.length === 1 ? {
-                kind: 'DirectRelation',
-                ...relation[0]
-              } : {
-                kind: 'JunctionRelation',
-                toJunction: { kind: 'DirectRelation', ...relation[0] },
-                fromJunction: { kind: 'DirectRelation', ...relation[1] },
-              },
+              relation: makeRelation(relation),
               field,
             });
           }
@@ -244,118 +457,445 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     return [details, relations, variants];
   };
 
-  const makeSimpleSummaryField = (selection: FieldNode, subSelection: FieldNode, type: GraphQLObjectType): Field.SimpleSummaryField => {
-    if (selection.name.value === 'total') {
+  let implicitAggCount = 0;
+
+  const makeAgg = (func: Field.AggregationFunc, dbName: string, apiName: string): Field.Aggregation => {
+    if (dbName === 'total') {
       return {
-        kind: "SimpleSummaryField",
-        aggregation: "count",
+        kind: "Aggregation",
+        func,
         name: "1",
-        alias: "total",
         raw: true,
+        alias: apiName,
       };
     }
 
-    const { name, alias } = createDetailField(selection, type)
-
     return {
-      kind: 'SimpleSummaryField',
-      aggregation: subSelection.name.value as Field.Aggregation,
-      name,
-      alias,
+      kind: "Aggregation",
+      func,
+      name: dbName,
+      alias: apiName,
       raw: false,
     };
   };
 
   const visitSummarySelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.SummaryField[], Field.RelationField[]] => {
-    const summaries: Field.SummaryField[] = [];
-    const relations: Field.RelationField[] = [];
+    const imp = (selections: readonly SelectionNode[], type: GraphQLObjectType, col: string, func?: Field.AggregationFunc): [Field.SummaryField[], Field.RelationField[], Field.Aggregation[]] => {
+      const summaries: Field.SummaryField[] = [];
+      const relations: Field.RelationField[] = [];
+      const aggs: Field.Aggregation[] = [];
 
-    for (const selection of selections) {
-      switch (selection.kind) {
-        case Kind.FIELD: {
+      for (const selection of selections) {
+        switch (selection.kind) {
+          case Kind.FIELD: {
+            const name = selection.name.value;
+            if (name === '__typename') break;
+            const { extensions, type: fieldType } = type.getFields()[name];
+            const ty = reduceType(fieldType);
+            const isRelation = relationExtensionName in extensions;
+            const isCollection = collectionExtensionName in extensions;
+            const isAggregationFunc = aggNames.includes(name);
+            const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
 
+            if (isObjectType(ty)) {
+              const subSelections = selection.selectionSet?.selections ?? [];
+              const { extensions: typeExtensions } = ty;
 
-          const name = selection.name.value;
-          if (name === "__typename")
-            break;
-          const field = type.getFields()[name];
-          const { extensions, type: fieldType, args } = field;
-
-          const isRelation = relationExtensionName in extensions;
-          const isCollection = collectionExtensionName in extensions;
-
-
-          if (isRelation) {
-            const relation = getExtension(extensions, relationExtensionName);
-            if (isCollection) {
-              // emit nested summary field & relation field
-
-
-
-            }
-            else { // is entity
-              // emit simple summary field & relation field
-              const field = createEntity(selection, type, relation[relation.length - 1].to);
-              const [entitySummaries, entityRelations] = visitSummarySelections(selection.selectionSet?.selections ?? [], reduceToObjectType(fieldType));
-              summaries.push(...entitySummaries);
-              relations.push(
-                {
-                  kind: 'RelationField',
-                  relation: relation.length === 1 ? {
-                    kind: 'DirectRelation',
-                    ...relation[0]
-                  } : {
-                    kind: 'JunctionRelation',
-                    toJunction: { kind: 'DirectRelation', ...relation[0] },
-                    fromJunction: { kind: 'DirectRelation', ...relation[1] },
-                  },
-                  field: {
-                    ...field,
-                    details: [],
-                  },
-                },
-                ...entityRelations,
-              );
-            }
-          }
-          else {
-            // emit simple summary fields
-            for (const subSelection of selection.selectionSet?.selections ?? []) {
-              switch (subSelection.kind) {
-                case Kind.FIELD: {
-                  summaries.push(makeSimpleSummaryField(selection, subSelection, type));
+              if (isRelation) {
+                const relation = getExtension(extensions, relationExtensionName);
+                if (isCollection) {
+                  const table = getExtension(typeExtensions, tableExtensionName);
+                  const [a, b, c] = imp(subSelections, ty, col, func);
+                  summaries.push({
+                    kind: "NodeSummaryField",
+                    alias: name,
+                    fields: a,
+                  });
+                  relations.push({
+                    kind: "RelationField",
+                    relation: makeRelation(relation),
+                    field: {
+                      kind: "Collection",
+                      name: "", // ???????
+                      table: table.name,
+                      skip: true,
+                      details: [],
+                      relations: b,
+                      summaries: [],
+                      variants: [],
+                      rawColumns: c.map<SQL.ColumnNode>(x => ({
+                        kind: "ColumnNode",
+                        alias: x.alias,
+                        expr: {
+                          kind: "ApplicationExpressionNode",
+                          func: {
+                            kind: "RawExpressionNode",
+                            value: Field.translateAggregationFuncToSql(x.func),
+                          },
+                          args: [x.raw ? {
+                            kind: "RawExpressionNode",
+                            value: x.name
+                          } : {
+                            kind: "IdentifierExpressionNode",
+                            name: x.name
+                          }]
+                        }
+                      })),
+                    },
+                  });
                 }
-                  break;
+                else {
+                  throw new Error("TODO: Entity Summaries")
+                }
+              }
+              else if (isAggregationFunc) {
+                let colName = name;
+                if (func !== undefined) {
+                  colName = `__agg${implicitAggCount++}`;
+                  aggs.push(makeAgg(name as Field.AggregationFunc, col, colName));
+                }
+                const [subSummaries, subRelations, subAggs] = imp(selection.selectionSet?.selections ?? [], ty, col, name as Field.AggregationFunc);
+                relations.push(...subRelations);
+                aggs.push(...subAggs);
+                summaries.push({
+                  kind: "NodeSummaryField",
+                  alias: name,
+                  fields: subSummaries,
+                });
+              }
+              else {
+                const [subSummaries, subRelations, subAggs] = imp(selection.selectionSet?.selections ?? [], ty, dbName, func);
+                summaries.push({
+                  kind: "NodeSummaryField",
+                  alias: name,
+                  fields: subSummaries,
+                });
+                relations.push(...subRelations);
+                aggs.push(...subAggs);
+              }
+            }
+            else {
+              // base case
+
+              // there has been an aggregation before us
+              // we need to generate an implicit column
+              if (func !== undefined) {
+                const colName = `__agg${implicitAggCount++}`;
+                summaries.push({
+                  kind: "LeafSummaryField",
+                  alias: name,
+                  aggregation: makeAgg(func, colName, colName),
+                });
+                aggs.push(makeAgg(name as Field.AggregationFunc, col, colName));
+              }
+              // there has not been an aggregation before us
+              // safe to aggregate here
+              else {
+                summaries.push({
+                  kind: "LeafSummaryField",
+                  alias: name,
+                  aggregation: makeAgg(name as Field.AggregationFunc, col, col),
+                });
               }
             }
           }
-
-          // if (relationExtensionName in extensions) {
-          //   const relation = getExtension(extensions, relationExtensionName);
-          //   const type = reduceToObjectType(fieldType);
-          //   const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
-          //   relations.push({
-          //     kind: 'RelationField',
-          //     relation: relation.length === 1 ? {
-          //       kind: 'DirectRelation',
-          //       ...relation[0]
-          //     } : {
-          //       kind: 'JunctionRelation',
-          //       toJunction: { kind: 'DirectRelation', ...relation[0] },
-          //       fromJunction: { kind: 'DirectRelation', ...relation[1] },
-          //     },
-          //     field,
-          //   });
-          // }
-          // else {
-          //   details.push(createDetailField(selection, type));
-          // }
+            break;
         }
-          break;
       }
+
+      return [summaries, relations, aggs];
     }
 
+    const [summaries, relations] = imp(selections, type, '');
     return [summaries, relations];
+
+
+    // for (const selection of selections) {
+    //   switch (selection.kind) {
+    //     case Kind.FIELD: {
+    //       const name = selection.name.value;
+    //       if (name === '__typename')
+    //         break;
+    //       const { extensions, type: fieldType } = type.getFields()[name];
+    //       const ty = reduceToObjectType(fieldType);
+    //       const isRelation = relationExtensionName in extensions;
+    //       const isCollection = collectionExtensionName in extensions;
+    //       const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
+    //       const subSelections = selection.selectionSet?.selections ?? [];
+
+    //       if (isRelation) {
+    //         const relation = getExtension(extensions, relationExtensionName);
+    //         const { name: table } = getExtension(ty.extensions, tableExtensionName);
+    //         if (isCollection) {
+    //           const subFields: Field.SummaryField[] = [];
+    //           const subRelations: Field.RelationField[] = [];
+    //           const subNames: string[] = [];
+    //           for (const subSelection of subSelections) {
+    //             switch (subSelection.kind) {
+    //               case Kind.FIELD: {
+    //                 const subName = subSelection.name.value;
+    //                 subNames.push(subName);
+    //                 const [x, y] = visitSummarySelections(subSelection.selectionSet?.selections ?? [], reduceToObjectType(ty.getFields()[subName].type));
+    //                 subFields.push({
+    //                   kind: "NestedSummaryField",
+    //                   alias: subName,
+    //                   fields: x,
+    //                 });
+    //                 subRelations.push(...y);
+    //               }
+    //                 break;
+    //             }
+    //           }
+    //           summaries.push({
+    //             kind: "NestedSummaryField",
+    //             alias: name,
+    //             fields: subFields,
+    //           });
+    //           relations.push({
+    //             kind: 'RelationField',
+    //             relation: relation.length === 1 ? {
+    //               kind: 'DirectRelation',
+    //               ...relation[0]
+    //             } : {
+    //               kind: 'JunctionRelation',
+    //               toJunction: { kind: 'DirectRelation', ...relation[0] },
+    //               fromJunction: { kind: 'DirectRelation', ...relation[1] },
+    //             },
+    //             field: {
+    //               kind: "Collection",
+    //               table,
+    //               name,
+    //               rawColumns: [
+
+    //               ],
+    //               relations: subRelations,
+    //               details: [],
+    //               summaries: [],
+    //               skip: false,
+    //               variants: [],
+    //             },
+    //           })
+    //         }
+    //         else {
+    //           throw new Error("TODO !");
+    //         }
+    //       }
+    //       else {
+    //         const aggs: Field.Aggregation[] = [];
+    //         for (const subSelection of selection.selectionSet?.selections ?? []) {
+    //           switch (subSelection.kind) {
+    //             case Kind.FIELD: {
+    //               const aggName = subSelection.name.value;
+    //               aggs.push(aggName as Field.Aggregation);
+    //             }
+    //               break;
+    //           }
+    //         }
+
+    //         if (aggs.length > 0) {
+    //           if (name === 'total') {
+    //             summaries.push({
+    //               kind: "DirectSummaryField",
+    //               alias: name,
+    //               name: "1",
+    //               summaries: [{
+    //                 kind: "RawSummary",
+    //                 name: "count",
+    //                 node: {
+    //                   kind: "RawExpressionNode",
+    //                   value: "count(1)"
+    //                 }
+    //               }],
+    //             });
+    //           }
+    //           else {
+    //             summaries.push({
+    //               kind: "DirectSummaryField",
+    //               alias: name,
+    //               name: dbName,
+    //               summaries: aggs.map(agg => ({
+    //                 kind: "AggregationSummary",
+    //                 agg,
+    //               })),
+    //             });
+    //           }
+    //         }
+    //       }
+    //     }
+    //       break;
+    //   }
+    // }
+
+    // for (const selection of selections) {
+    //   switch (selection.kind) {
+    //     case Kind.FIELD: {
+    //       const name = selection.name.value;
+    //       if (name === "__typename")
+    //         break;
+    //       const field = type.getFields()[name];
+    //       const { extensions, type: fieldType, args } = field;
+    //       const objType = reduceToObjectType(fieldType);
+    //       const isRelation = relationExtensionName in extensions;
+    //       const isCollection = collectionExtensionName in extensions;
+    //       const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
+
+    //       const subSelections = selection.selectionSet?.selections ?? [];
+
+    //       if (isRelation) {
+    //         const relation = getExtension(extensions, relationExtensionName);
+
+    //         const { name: table } = getExtension(objType.extensions, tableExtensionName);
+
+    //         if (isCollection) {
+    //           // emit nested summary field & relation field
+
+
+    //           const [subSummaries, subRelations] = visitSummarySelections(subSelections, objType);
+    //           summaries.push({
+    //             kind: "NestedSummaryField",
+    //             alias: name,
+    //             // TODO: these names need to be patched to the implicit column names
+    //             fields: subSummaries,
+    //           });
+    //           relations.push(
+    //             {
+    //               kind: 'RelationField',
+    //               relation: relation.length === 1 ? {
+    //                 kind: 'DirectRelation',
+    //                 ...relation[0]
+    //               } : {
+    //                 kind: 'JunctionRelation',
+    //                 toJunction: { kind: 'DirectRelation', ...relation[0] },
+    //                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
+    //               },
+    //               field: {
+    //                 kind: "Collection",
+    //                 table, // TODO: what to put here?
+    //                 name,
+    //                 rawColumns: [
+    //                   // TODO: add the new implicit columns
+    //                 ],
+    //                 relations: subRelations, // TODO: should this be nested or not
+    //                 details: [],
+    //                 summaries: [],
+    //                 skip: false,
+    //                 variants: [],
+    //               },
+    //             },
+    //           );
+    //         }
+    //         else { // is entity
+    //           // emit simple summary field & relation field
+    //           const field = createEntity(selection, type, relation[relation.length - 1].to);
+    //           const [entitySummaries, entityRelations] = visitSummarySelections(selection.selectionSet?.selections ?? [], reduceToObjectType(fieldType));
+    //           summaries.push(...entitySummaries);
+    //           relations.push(
+    //             {
+    //               kind: 'RelationField',
+    //               relation: relation.length === 1 ? {
+    //                 kind: 'DirectRelation',
+    //                 ...relation[0]
+    //               } : {
+    //                 kind: 'JunctionRelation',
+    //                 toJunction: { kind: 'DirectRelation', ...relation[0] },
+    //                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
+    //               },
+    //               field: {
+    //                 ...field,
+    //                 details: [],
+    //               },
+    //             },
+    //             ...entityRelations,
+    //           );
+    //         }
+    //       }
+    //       else {
+    //         // emit direct summary fields
+    //         const aggs: Field.Aggregation[] = [];
+    //         const subFields: Field.SummaryField[] = [];
+    //         for (const subSelection of selection.selectionSet?.selections ?? []) {
+    //           switch (subSelection.kind) {
+    //             case Kind.FIELD: {
+    //               const aggName = subSelection.name.value;
+
+    //               const { type: aggType } = objType.getFields()[aggName];
+    //               const ty = reduceType(aggType);
+    //               console.log(ty);
+
+    //               if (isObjectType(ty)) {
+    //                 const [x, y] = visitSummarySelections(subSelection.selectionSet?.selections ?? [], ty);
+    //                 subFields.push(...x);
+    //                 relations.push(...y);
+    //               }
+    //               else {
+    //                 // RFC: this value should probably be checked
+    //                 aggs.push(aggName as Field.Aggregation);
+    //               }
+    //             }
+    //               break;
+    //           }
+    //         }
+
+    //         if (aggs.length > 0 && subFields.length > 0) {
+    //           throw new Error(`WTF Bad Schema`);
+    //         }
+
+    //         if (subFields.length > 0) {
+    //           summaries.push({
+    //             kind: "NestedSummaryField",
+    //             alias: name,
+    //             fields: subFields
+    //           })
+    //         }
+
+    //         if (aggs.length > 0) {
+    //           if (name === 'total') {
+    //             summaries.push({
+    //               kind: "DirectSummaryField",
+    //               alias: name,
+    //               name: "1",
+    //               summaries: aggs,
+    //               raw: true,
+    //             });
+    //           }
+    //           else {
+    //             summaries.push({
+    //               kind: "DirectSummaryField",
+    //               alias: name,
+    //               name: dbName,
+    //               summaries: aggs,
+    //               raw: false,
+    //             });
+    //           }
+    //         }
+    //       }
+
+    //       // if (relationExtensionName in extensions) {
+    //       //   const relation = getExtension(extensions, relationExtensionName);
+    //       //   const type = reduceToObjectType(fieldType);
+    //       //   const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
+    //       //   relations.push({
+    //       //     kind: 'RelationField',
+    //       //     relation: relation.length === 1 ? {
+    //       //       kind: 'DirectRelation',
+    //       //       ...relation[0]
+    //       //     } : {
+    //       //       kind: 'JunctionRelation',
+    //       //       toJunction: { kind: 'DirectRelation', ...relation[0] },
+    //       //       fromJunction: { kind: 'DirectRelation', ...relation[1] },
+    //       //     },
+    //       //     field,
+    //       //   });
+    //       // }
+    //       // else {
+    //       //   details.push(createDetailField(selection, type));
+    //       // }
+    //     }
+    //       break;
+    //   }
+    // }
+
+    // return [summaries, relations];
   };
 
   const paginationArgs = (args: readonly ArgumentNode[]): Field.PaginationField | undefined => {
@@ -409,7 +949,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       relations,
       variants,
       pagination,
-      tagColumn
+      tagColumn,
+      rawColumns: [],
     };
   };
 
@@ -555,6 +1096,7 @@ export namespace Field {
     variants: VariantField[];
     pagination?: PaginationField;
     tagColumn?: string;
+    rawColumns: SQL.ColumnNode[];
   }
 
   export interface EntityField {
@@ -578,32 +1120,22 @@ export namespace Field {
   }
 
   export type SummaryField =
-    | SimpleSummaryField
-    | NestedSummaryField
+    | NodeSummaryField
+    | LeafSummaryField
 
-  export type SimpleSummaryField = {
-    kind: "SimpleSummaryField",
-    aggregation: Aggregation,
-    name: string,
+  export type NodeSummaryField = {
+    kind: "NodeSummaryField",
     alias: string,
-    raw: boolean,
+    fields: SummaryField[],
   }
 
-  export type NestedSummaryField = {
-    kind: "NestedSummaryField",
-    aggregation: Aggregation,
+  export type LeafSummaryField = {
+    kind: "LeafSummaryField",
     alias: string,
-    field: SummaryField,
-    raw: boolean,
+    aggregation: Aggregation,
   }
 
-  // export interface SummaryField {
-  //   kind: "SummaryField";
-  //   aggregation: Aggregation;
-  //   field: DetailField;
-  // }
-
-  export type Aggregation =
+  export type AggregationFunc =
     | 'sum'
     | 'count'
     | 'max'
@@ -613,6 +1145,14 @@ export namespace Field {
     | 'stdp'
     | 'var'
     | 'varp'
+
+  export type Aggregation = {
+    kind: "Aggregation",
+    func: AggregationFunc,
+    name: string,
+    alias?: string,
+    raw: boolean,
+  }
 
   export interface DetailField {
     kind: "DetailField";
@@ -688,6 +1228,25 @@ export namespace Field {
     return fields.map(x => x.conditions.length > 0 && !x.hasOptionalConditions).some(x => x);
   }
 
+  export const translateAggregationFuncToSql = (agg: Field.AggregationFunc): string => {
+    switch (agg) {
+      case 'sum':
+      case 'count':
+      case 'max':
+      case 'min':
+      case 'avg':
+        return agg;
+      case 'std':
+        return 'stddev_samp';
+      case 'stdp':
+        return 'stddev_pop';
+      case 'var':
+        return 'var_samp';
+      case 'varp':
+        return 'var_pop';
+    }
+  }
+
   /**
    * TODO!! need to do something with the summary filter and sort arguments
    */
@@ -700,7 +1259,7 @@ export namespace Field {
       const table = makeTableAlias();
 
       const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
-      const [summary, summaryHavingNodes, summarySortNodes] = generateSummaryFields(x.summaries, table);
+      const summary = generateSummaryFields(x.summaries, table);
       const relations = generateRelationFields(x.relations, rawTable);
       const variants = generateVariantFields(x.variants, rawTable, table);
 
@@ -886,7 +1445,7 @@ export namespace Field {
         ]
       };
 
-      return collection.skip ? [] : [{
+      return collection.skip ? collection.rawColumns : [...collection.rawColumns, {
         kind: 'ColumnNode',
         expr: {
           kind: 'ApplicationExpressionNode',
@@ -1037,78 +1596,60 @@ export namespace Field {
       ];
     };
 
-    const generateSummaryFields = (x: SummaryField[], table: string): [SQL.ExpressionNode, SQL.WhereNode[], SQL.SortNode[]] => {
-      const whereNodes: SQL.WhereNode[] = [];
-      const sortNodes: SQL.SortNode[] = [];
-      const args: SQL.ExpressionNode[] = [];
+    const generateSummaryFields = (x: SummaryField[], table: string): SQL.ExpressionNode => {
+      const args = x.flatMap(f => generateSummaryField(f, table, table));
 
-      for (const f of x) {
-        const [cols, wNodes, sNodes] = generateSummaryField(f, table, table);
-        args.push(...cols);
-        whereNodes.push(...wNodes);
-        sortNodes.push(...sNodes);
-      }
-
-      return [{ kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: 'json_build_object' }, args }, whereNodes, sortNodes];
+      return {
+        kind: 'ApplicationExpressionNode',
+        func: {
+          kind: 'RawExpressionNode',
+          value: 'json_build_object'
+        },
+        args
+      };
     };
 
-    const translateAggregationToSql = (agg: Field.Aggregation): string => {
-      switch (agg) {
-        case 'sum':
-        case 'count':
-        case 'max':
-        case 'min':
-        case 'avg':
-          return agg;
-        case 'std':
-          return 'stddev_samp';
-        case 'stdp':
-          return 'stddev_pop';
-        case 'var':
-          return 'var_samp';
-        case 'varp':
-          return 'var_pop';
-      }
-    }
-
-    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
+    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ApplicationExpressionNode] => {
       switch (x.kind) {
-        case 'SimpleSummaryField': return generateSimpleSummaryField(x, rawTable, table);
-        case 'NestedSummaryField': return generateNestedSummaryField(x, rawTable, table);
+        case 'NodeSummaryField': return generateNodeSummaryField(x, rawTable, table);
+        case 'LeafSummaryField': return generateLeafSummaryField(x, rawTable, table);
       }
     };
 
-    const generateSimpleSummaryField = (x: SimpleSummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
-      const subColumnExpr = SQL.simpleColumnNode(rawTable, x.name).expr;
-      const selectColumnExpr: SQL.ExpressionNode = x.raw ? { kind: 'RawExpressionNode', value: x.name } : SQL.simpleColumnNode(table, x.name).expr;
-
-      const col = [
-        { kind: 'StringExpressionNode', value: x.alias },
-        selectColumnExpr,
-      ] as [SQL.StringExpressionNode, SQL.ExpressionNode] | [];
-
+    const generateNodeSummaryField = (f: NodeSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ApplicationExpressionNode] => {
       return [
-        col.length === 0 ? [] : [
-          col[0],
-          {
-            kind: 'ApplicationExpressionNode',
-            func: {
-              kind: 'RawExpressionNode',
-              value: 'json_build_object',
-            },
-            args: [
-              { kind: 'StringExpressionNode', value: x.aggregation },
-              { kind: 'ApplicationExpressionNode', func: { kind: 'RawExpressionNode', value: translateAggregationToSql(x.aggregation) }, args: [col[1]] }
-            ]
-          }
-        ],
-        [],
-        []
+        { kind: 'StringExpressionNode', value: f.alias },
+        {
+          kind: 'ApplicationExpressionNode',
+          func: {
+            kind: 'RawExpressionNode',
+            value: 'json_build_object',
+          },
+          args: f.fields.flatMap(x => generateSummaryField(x, rawTable, table))
+        }
       ];
     };
 
-    const generateNestedSummaryField = (x: NestedSummaryField, rawTable: string, table: string): [[SQL.StringExpressionNode, SQL.ApplicationExpressionNode] | [], SQL.WhereNode[], SQL.SortNode[]] => {
-      throw new Error("TODO generateNestedSummaryField");
+    const generateLeafSummaryField = (f: LeafSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ApplicationExpressionNode] => {
+      return [
+        {
+          kind: "StringExpressionNode",
+          value: f.alias,
+        },
+        {
+          kind: 'ApplicationExpressionNode',
+          func: {
+            kind: "RawExpressionNode",
+            value: translateAggregationFuncToSql(f.aggregation.func)
+          },
+          args: [
+            !f.aggregation.raw ? SQL.simpleColumnNode(table, f.aggregation.name).expr : {
+              kind: "RawExpressionNode",
+              value: f.aggregation.name
+            },
+          ]
+        },
+      ];
     };
 
     const generateRelationFields = (x: RelationField[], table: string): SQL.JoinNode[] => {

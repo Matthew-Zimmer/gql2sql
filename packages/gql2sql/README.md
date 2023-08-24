@@ -15,8 +15,9 @@
 - [x] ~~remove implicit variant filtering~~
 - [x] support coalesce details to empty array when no data
 
-- [ ] support summaries over enums
-- [ ] support nested summaries
+- [ ] support nested summaries for collections
+- [ ] support nested summaries for entities
+  - [ ] support summaries over enums
 - [ ] support variant summaries
 
 - [ ] support summary filters

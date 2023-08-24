@@ -27,11 +27,14 @@
     "@prisma/client": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
-    "gql2sql": "^1.1.8",
+    "gql2sql": "^1.1.12",
     "gql2sql-nestjs": "^0.3.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.1.12",
     "prisma": "^5.1.1"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   }
 }

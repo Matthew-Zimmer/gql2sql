@@ -13,6 +13,7 @@
     "experimentalDecorators": true,
   },
   "exclude": [
-    "dist/**"
+    "dist/**",
+    "prisma/**"
   ]
 }
