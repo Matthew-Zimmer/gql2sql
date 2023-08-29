@@ -15,10 +15,12 @@
 - [x] ~~remove implicit variant filtering~~
 - [x] support coalesce details to empty array when no data
 
-- [ ] support nested summaries for collections
-- [ ] support nested summaries for entities
-  - [ ] support summaries over enums
+- [x] support nested summaries for collections
+- [x] support nested summaries for entities
+  - [x] support summaries over enums
+
 - [ ] support variant summaries
+- [ ] support nested variant relations
 
 - [ ] support summary filters
 - [ ] support summary ordering
