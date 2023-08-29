@@ -2,6 +2,7 @@ export * from './alias';
 export * from './argsField';
 export * from './booleanField';
 export * from './collectionField';
+export * from './enumerationField';
 export * from './floatField';
 export * from './idField';
 export * from './intField';

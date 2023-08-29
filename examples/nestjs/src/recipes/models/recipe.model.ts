@@ -1,4 +1,4 @@
-import { ArgsType, Directive, Field, Float, ID, IntersectionType, ObjectType, ReturnTypeFuncValue, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
+import { ArgsType, Directive, Extensions, Field, Float, ID, IntersectionType, ObjectType, ReturnTypeFuncValue, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
 import { ArgsField, ArrayAggregations, CollectionField, FloatAggregations, IDAggregations, IdField, IntAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 import { RecipeDifficulty } from '@prisma/client';
@@ -64,8 +64,10 @@ class NestedIngredientsSummary {
   min?: IngredientsSummary;
 }
 
-@ObjectType({ description: 'summary' })
-export class RecipesSummary {
+
+
+@ObjectType()
+export class RecipesSummaryBase {
   // this needs to be implemented!! in gql2sql
   @Field(() => ArrayAggregations)
   total?: ArrayAggregations;
@@ -76,7 +78,32 @@ export class RecipesSummary {
   @Relation("id", "RecipeToIngredient", "recipeId", "ingredientId", "Ingredient", "id")
   @CollectionField(() => NestedIngredientsSummary)
   ingredients?: NestedIngredientsSummary;
+
+  //@Extensions({ enumeration: {} })
+  //@Field(() => NestedIngredientsSummary)
+  //difficulty?: NestedIngredientsSummary;
 }
+
+@ObjectType()
+class RecipesSummaryByDifficulty {
+  @Field(() => RecipesSummaryBase)
+  easy?: RecipesSummaryBase;
+
+  @Field(() => RecipesSummaryBase)
+  medium?: RecipesSummaryBase;
+
+  @Field(() => RecipesSummaryBase)
+  hard?: RecipesSummaryBase;
+}
+
+@ObjectType({ description: 'summary' })
+export class RecipesSummary extends RecipesSummaryBase {
+  @Extensions({ enumeration: {} })
+  @Field(() => RecipesSummaryByDifficulty)
+  difficulty?: RecipesSummaryByDifficulty;
+}
+
+
 
 @ObjectType()
 export class Recipes {
@@ -106,6 +133,7 @@ export class PureFloatAggregations {
 
 import { getFieldsAndDecoratorForType } from "@nestjs/graphql/dist/schema-builder/utils/get-fields-and-decorator.util";
 import { Type } from '@nestjs/common';
+import { enumerationExtensionName } from '../../gql2sql';
 
 // function ConvertAllFieldsTo<C, T extends ReturnTypeFuncValue>(on: C, to: T) {
 //   const fields = objectFields(on);

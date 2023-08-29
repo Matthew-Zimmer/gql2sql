@@ -75,11 +75,24 @@ type NestedIngredientsSummary {
   min: IngredientsSummary!
 }
 
+type RecipesSummaryBase {
+  total: ArrayAggregations!
+  title: StringAggregations!
+  ingredients: NestedIngredientsSummary!
+}
+
+type RecipesSummaryByDifficulty {
+  easy: RecipesSummaryBase!
+  medium: RecipesSummaryBase!
+  hard: RecipesSummaryBase!
+}
+
 """summary"""
 type RecipesSummary {
   total: ArrayAggregations!
   title: StringAggregations!
   ingredients: NestedIngredientsSummary!
+  difficulty: RecipesSummaryByDifficulty!
 }
 
 type Recipes {
@@ -92,7 +105,7 @@ scalar Date
 
 type Query {
   recipe(id: String!): Recipe!
-  recipes(skip: Int! = 0, take: Int! = 25): Recipes!
+  recipes(limit: Int, offset: Int): Recipes!
   ingredient(id: String!): Ingredient!
   ingredients: Ingredients!
 }

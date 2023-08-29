@@ -1,16 +1,19 @@
-import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Field, Float, ObjectType } from '@nestjs/graphql';
 
 @ObjectType()
 export class BooleanAggregations {
-  @Field(() => Int)
+  @Field(() => Float, { nullable: true, description: "The count of non null values of this field in this collection" })
   count?: number;
 
-  @Field(() => [Boolean])
+  @Field(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection" })
+  countd?: number;
+
+  @Field(() => [Boolean], { nullable: true, description: "The distinct boolean values of this field in this collection" })
   distinct?: boolean[];
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true, description: "The max boolean value (all) of this field in this collection" })
   max?: boolean;
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true, description: "The min boolean value (any) of this field in this collection" })
   min?: boolean;
 }

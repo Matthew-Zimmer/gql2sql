@@ -1,15 +1,36 @@
 import { applyDecorators } from '@nestjs/common';
-import { Extensions, ReturnTypeFuncValue } from '@nestjs/graphql';
+import { Extensions, FieldOptions, ReturnTypeFuncValue } from '@nestjs/graphql';
 import { collectionExtensionName } from 'gql2sql';
 import { ArgsField, ArgsFieldOptions } from './argsField';
 import { Decorator } from './types';
+import { CollectionArgs } from '../graphql';
 
-export function CollectionField<T extends ReturnTypeFuncValue, A extends ReturnTypeFuncValue>(ty?: () => T, options?: ArgsFieldOptions<T, A>): Decorator;
-export function CollectionField<A extends ReturnTypeFuncValue>(options?: ArgsFieldOptions<any, A>): Decorator;
-export function CollectionField<T extends ReturnTypeFuncValue, A extends ReturnTypeFuncValue>(arg1?: ArgsFieldOptions<T, A> | (() => T), arg2?: ArgsFieldOptions<T, A>) {
+/**
+ * Marks a field as a collection field meaning it supports detail and summary aggregations
+ * 
+ * @extends ArgsField
+ * 
+ * @param ty An arrow function returning the type of the field
+ * @param options Standard Nestjs field options
+ */
+export function CollectionField<T extends ReturnTypeFuncValue>(ty?: () => T, options?: FieldOptions<T>): Decorator;
+
+/**
+ * Marks a field as a collection field meaning it supports detail and summary aggregations
+ * 
+ * @extends ArgsField
+ * 
+ * @param options Standard Nestjs field options
+ */
+export function CollectionField(options?: FieldOptions): Decorator;
+
+export function CollectionField<T extends ReturnTypeFuncValue>(arg1?: FieldOptions<T> | (() => T), arg2?: FieldOptions<T>) {
   const ty = typeof arg1 === 'function' ? arg1 : undefined;
   const options = typeof arg1 === 'object' ? arg1 : arg2 ?? {};
-  const fullOptions = { ...options, middleware: [...options?.middleware ?? [], async (_ctx: any, next: any) => (await next()) ?? {}] };
+  const fullOptions = {
+    ...options,
+    args: () => CollectionArgs,
+  }
   return applyDecorators(
     ty === undefined ? ArgsField(fullOptions) : ArgsField(ty, fullOptions as any),
     Extensions({

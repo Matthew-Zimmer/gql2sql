@@ -33,48 +33,53 @@ export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLReso
 }
 
 export const relationExtensionName = 'relation';
-export interface RelationExtension {
+export type RelationExtension = {
   parentId: string;
   childId: string;
   to: string;
 }
 
 export const aliasExtensionName = 'alias';
-export interface AliasExtension {
+export type AliasExtension = {
   name: string;
 }
 
 export const tableExtensionName = 'table';
-export interface TableExtension {
+export type TableExtension = {
   name: string;
 }
 
-export interface VariantTag {
+export type VariantTag = {
   column: string;
   value: string;
 }
 
 export const variantExtensionName = 'variant';
-export interface VariantExtension {
+export type VariantExtension = {
   tag: VariantTag;
 }
 
 export const interfaceExtensionName = 'interface';
-export interface InterfaceExtension {
+export type InterfaceExtension = {
   tagColumn: string;
 }
 
 export const collectionExtensionName = 'collection';
-export interface CollectionHandlerExtension {
+export type CollectionHandlerExtension = {
 }
 
-interface Extensions {
+export const enumerationExtensionName = 'enumeration';
+export type EnumerationHandlerExtension = {
+}
+
+type Extensions = {
   [relationExtensionName]: [RelationExtension] | [RelationExtension, RelationExtension];
   [aliasExtensionName]: AliasExtension;
   [tableExtensionName]: TableExtension;
   [variantExtensionName]: VariantExtension;
   [interfaceExtensionName]: InterfaceExtension;
   [collectionExtensionName]: CollectionHandlerExtension;
+  [enumerationExtensionName]: EnumerationHandlerExtension;
 }
 
 export type Extension<K extends keyof Extensions> = Record<K, Extensions[K]>;
@@ -479,8 +484,19 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
     };
   };
 
+  type EnumSelector = {
+    col?: string,
+    value?: string,
+  }
+
   const visitSummarySelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.SummaryField[], Field.RelationField[]] => {
-    const imp = (selections: readonly SelectionNode[], type: GraphQLObjectType, col: string, func?: Field.AggregationFunc): [Field.SummaryField[], Field.RelationField[], Field.Aggregation[]] => {
+    const imp = (
+      selections: readonly SelectionNode[],
+      type: GraphQLObjectType,
+      col: string,
+      func: Field.AggregationFunc | undefined,
+      enumState: EnumSelector | undefined
+    ): [Field.SummaryField[], Field.RelationField[], Field.Aggregation[]] => {
       const summaries: Field.SummaryField[] = [];
       const relations: Field.RelationField[] = [];
       const aggs: Field.Aggregation[] = [];
@@ -494,6 +510,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             const ty = reduceType(fieldType);
             const isRelation = relationExtensionName in extensions;
             const isCollection = collectionExtensionName in extensions;
+            const isEnumeration = enumerationExtensionName in extensions;
             const isAggregationFunc = aggNames.includes(name);
             const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
 
@@ -505,7 +522,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                 const relation = getExtension(extensions, relationExtensionName);
                 if (isCollection) {
                   const table = getExtension(typeExtensions, tableExtensionName);
-                  const [a, b, c] = imp(subSelections, ty, col, func);
+                  const [a, b, c] = imp(subSelections, ty, col, func, enumState);
                   summaries.push({
                     kind: "NodeSummaryField",
                     alias: name,
@@ -545,8 +562,40 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   });
                 }
                 else {
-                  throw new Error("TODO: Entity Summaries")
+                  const table = getExtension(typeExtensions, tableExtensionName);
+                  const [a, b, c] = imp(subSelections, ty, col, func, enumState);
+                  summaries.push({
+                    kind: "NodeSummaryField",
+                    alias: name,
+                    fields: a,
+                  });
+                  relations.push({
+                    kind: "RelationField",
+                    relation: makeRelation(relation),
+                    field: {
+                      kind: "EntityField",
+                      name: "", // ???????
+                      table: table.name,
+                      skip: true,
+                      details: [],
+                      relations: b,
+                      variants: [],
+                    },
+                  });
+                  aggs.push(...c);
                 }
+              }
+              else if (isEnumeration) {
+                const [subSummaries, subRelations, subAggs] = imp(subSelections, ty, col, func, {
+                  col: name
+                });
+                relations.push(...subRelations);
+                aggs.push(...subAggs);
+                summaries.push({
+                  kind: "NodeSummaryField",
+                  alias: name,
+                  fields: subSummaries,
+                });
               }
               else if (isAggregationFunc) {
                 let colName = name;
@@ -554,7 +603,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   colName = `__agg${implicitAggCount++}`;
                   aggs.push(makeAgg(name as Field.AggregationFunc, col, colName));
                 }
-                const [subSummaries, subRelations, subAggs] = imp(selection.selectionSet?.selections ?? [], ty, col, name as Field.AggregationFunc);
+                const [subSummaries, subRelations, subAggs] = imp(selection.selectionSet?.selections ?? [], ty, col, name as Field.AggregationFunc, enumState);
                 relations.push(...subRelations);
                 aggs.push(...subAggs);
                 summaries.push({
@@ -564,7 +613,11 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                 });
               }
               else {
-                const [subSummaries, subRelations, subAggs] = imp(selection.selectionSet?.selections ?? [], ty, dbName, func);
+                const nextEnumState: EnumSelector | undefined = enumState === undefined ? undefined : enumState.value !== undefined ? enumState : {
+                  ...enumState,
+                  value: name,
+                };
+                const [subSummaries, subRelations, subAggs] = imp(subSelections, ty, dbName, func, nextEnumState);
                 summaries.push({
                   kind: "NodeSummaryField",
                   alias: name,
@@ -576,6 +629,10 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             }
             else {
               // base case
+              const over = enumState && enumState.col && enumState.value ? {
+                col: enumState.col,
+                value: enumState.value,
+              } : undefined;
 
               // there has been an aggregation before us
               // we need to generate an implicit column
@@ -585,6 +642,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   kind: "LeafSummaryField",
                   alias: name,
                   aggregation: makeAgg(func, colName, colName),
+                  over,
                 });
                 aggs.push(makeAgg(name as Field.AggregationFunc, col, colName));
               }
@@ -595,6 +653,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   kind: "LeafSummaryField",
                   alias: name,
                   aggregation: makeAgg(name as Field.AggregationFunc, col, col),
+                  over,
                 });
               }
             }
@@ -606,296 +665,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       return [summaries, relations, aggs];
     }
 
-    const [summaries, relations] = imp(selections, type, '');
+    const [summaries, relations] = imp(selections, type, '', undefined, undefined);
     return [summaries, relations];
-
-
-    // for (const selection of selections) {
-    //   switch (selection.kind) {
-    //     case Kind.FIELD: {
-    //       const name = selection.name.value;
-    //       if (name === '__typename')
-    //         break;
-    //       const { extensions, type: fieldType } = type.getFields()[name];
-    //       const ty = reduceToObjectType(fieldType);
-    //       const isRelation = relationExtensionName in extensions;
-    //       const isCollection = collectionExtensionName in extensions;
-    //       const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
-    //       const subSelections = selection.selectionSet?.selections ?? [];
-
-    //       if (isRelation) {
-    //         const relation = getExtension(extensions, relationExtensionName);
-    //         const { name: table } = getExtension(ty.extensions, tableExtensionName);
-    //         if (isCollection) {
-    //           const subFields: Field.SummaryField[] = [];
-    //           const subRelations: Field.RelationField[] = [];
-    //           const subNames: string[] = [];
-    //           for (const subSelection of subSelections) {
-    //             switch (subSelection.kind) {
-    //               case Kind.FIELD: {
-    //                 const subName = subSelection.name.value;
-    //                 subNames.push(subName);
-    //                 const [x, y] = visitSummarySelections(subSelection.selectionSet?.selections ?? [], reduceToObjectType(ty.getFields()[subName].type));
-    //                 subFields.push({
-    //                   kind: "NestedSummaryField",
-    //                   alias: subName,
-    //                   fields: x,
-    //                 });
-    //                 subRelations.push(...y);
-    //               }
-    //                 break;
-    //             }
-    //           }
-    //           summaries.push({
-    //             kind: "NestedSummaryField",
-    //             alias: name,
-    //             fields: subFields,
-    //           });
-    //           relations.push({
-    //             kind: 'RelationField',
-    //             relation: relation.length === 1 ? {
-    //               kind: 'DirectRelation',
-    //               ...relation[0]
-    //             } : {
-    //               kind: 'JunctionRelation',
-    //               toJunction: { kind: 'DirectRelation', ...relation[0] },
-    //               fromJunction: { kind: 'DirectRelation', ...relation[1] },
-    //             },
-    //             field: {
-    //               kind: "Collection",
-    //               table,
-    //               name,
-    //               rawColumns: [
-
-    //               ],
-    //               relations: subRelations,
-    //               details: [],
-    //               summaries: [],
-    //               skip: false,
-    //               variants: [],
-    //             },
-    //           })
-    //         }
-    //         else {
-    //           throw new Error("TODO !");
-    //         }
-    //       }
-    //       else {
-    //         const aggs: Field.Aggregation[] = [];
-    //         for (const subSelection of selection.selectionSet?.selections ?? []) {
-    //           switch (subSelection.kind) {
-    //             case Kind.FIELD: {
-    //               const aggName = subSelection.name.value;
-    //               aggs.push(aggName as Field.Aggregation);
-    //             }
-    //               break;
-    //           }
-    //         }
-
-    //         if (aggs.length > 0) {
-    //           if (name === 'total') {
-    //             summaries.push({
-    //               kind: "DirectSummaryField",
-    //               alias: name,
-    //               name: "1",
-    //               summaries: [{
-    //                 kind: "RawSummary",
-    //                 name: "count",
-    //                 node: {
-    //                   kind: "RawExpressionNode",
-    //                   value: "count(1)"
-    //                 }
-    //               }],
-    //             });
-    //           }
-    //           else {
-    //             summaries.push({
-    //               kind: "DirectSummaryField",
-    //               alias: name,
-    //               name: dbName,
-    //               summaries: aggs.map(agg => ({
-    //                 kind: "AggregationSummary",
-    //                 agg,
-    //               })),
-    //             });
-    //           }
-    //         }
-    //       }
-    //     }
-    //       break;
-    //   }
-    // }
-
-    // for (const selection of selections) {
-    //   switch (selection.kind) {
-    //     case Kind.FIELD: {
-    //       const name = selection.name.value;
-    //       if (name === "__typename")
-    //         break;
-    //       const field = type.getFields()[name];
-    //       const { extensions, type: fieldType, args } = field;
-    //       const objType = reduceToObjectType(fieldType);
-    //       const isRelation = relationExtensionName in extensions;
-    //       const isCollection = collectionExtensionName in extensions;
-    //       const { name: dbName } = getExtension(extensions, aliasExtensionName, () => ({ name }));
-
-    //       const subSelections = selection.selectionSet?.selections ?? [];
-
-    //       if (isRelation) {
-    //         const relation = getExtension(extensions, relationExtensionName);
-
-    //         const { name: table } = getExtension(objType.extensions, tableExtensionName);
-
-    //         if (isCollection) {
-    //           // emit nested summary field & relation field
-
-
-    //           const [subSummaries, subRelations] = visitSummarySelections(subSelections, objType);
-    //           summaries.push({
-    //             kind: "NestedSummaryField",
-    //             alias: name,
-    //             // TODO: these names need to be patched to the implicit column names
-    //             fields: subSummaries,
-    //           });
-    //           relations.push(
-    //             {
-    //               kind: 'RelationField',
-    //               relation: relation.length === 1 ? {
-    //                 kind: 'DirectRelation',
-    //                 ...relation[0]
-    //               } : {
-    //                 kind: 'JunctionRelation',
-    //                 toJunction: { kind: 'DirectRelation', ...relation[0] },
-    //                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
-    //               },
-    //               field: {
-    //                 kind: "Collection",
-    //                 table, // TODO: what to put here?
-    //                 name,
-    //                 rawColumns: [
-    //                   // TODO: add the new implicit columns
-    //                 ],
-    //                 relations: subRelations, // TODO: should this be nested or not
-    //                 details: [],
-    //                 summaries: [],
-    //                 skip: false,
-    //                 variants: [],
-    //               },
-    //             },
-    //           );
-    //         }
-    //         else { // is entity
-    //           // emit simple summary field & relation field
-    //           const field = createEntity(selection, type, relation[relation.length - 1].to);
-    //           const [entitySummaries, entityRelations] = visitSummarySelections(selection.selectionSet?.selections ?? [], reduceToObjectType(fieldType));
-    //           summaries.push(...entitySummaries);
-    //           relations.push(
-    //             {
-    //               kind: 'RelationField',
-    //               relation: relation.length === 1 ? {
-    //                 kind: 'DirectRelation',
-    //                 ...relation[0]
-    //               } : {
-    //                 kind: 'JunctionRelation',
-    //                 toJunction: { kind: 'DirectRelation', ...relation[0] },
-    //                 fromJunction: { kind: 'DirectRelation', ...relation[1] },
-    //               },
-    //               field: {
-    //                 ...field,
-    //                 details: [],
-    //               },
-    //             },
-    //             ...entityRelations,
-    //           );
-    //         }
-    //       }
-    //       else {
-    //         // emit direct summary fields
-    //         const aggs: Field.Aggregation[] = [];
-    //         const subFields: Field.SummaryField[] = [];
-    //         for (const subSelection of selection.selectionSet?.selections ?? []) {
-    //           switch (subSelection.kind) {
-    //             case Kind.FIELD: {
-    //               const aggName = subSelection.name.value;
-
-    //               const { type: aggType } = objType.getFields()[aggName];
-    //               const ty = reduceType(aggType);
-    //               console.log(ty);
-
-    //               if (isObjectType(ty)) {
-    //                 const [x, y] = visitSummarySelections(subSelection.selectionSet?.selections ?? [], ty);
-    //                 subFields.push(...x);
-    //                 relations.push(...y);
-    //               }
-    //               else {
-    //                 // RFC: this value should probably be checked
-    //                 aggs.push(aggName as Field.Aggregation);
-    //               }
-    //             }
-    //               break;
-    //           }
-    //         }
-
-    //         if (aggs.length > 0 && subFields.length > 0) {
-    //           throw new Error(`WTF Bad Schema`);
-    //         }
-
-    //         if (subFields.length > 0) {
-    //           summaries.push({
-    //             kind: "NestedSummaryField",
-    //             alias: name,
-    //             fields: subFields
-    //           })
-    //         }
-
-    //         if (aggs.length > 0) {
-    //           if (name === 'total') {
-    //             summaries.push({
-    //               kind: "DirectSummaryField",
-    //               alias: name,
-    //               name: "1",
-    //               summaries: aggs,
-    //               raw: true,
-    //             });
-    //           }
-    //           else {
-    //             summaries.push({
-    //               kind: "DirectSummaryField",
-    //               alias: name,
-    //               name: dbName,
-    //               summaries: aggs,
-    //               raw: false,
-    //             });
-    //           }
-    //         }
-    //       }
-
-    //       // if (relationExtensionName in extensions) {
-    //       //   const relation = getExtension(extensions, relationExtensionName);
-    //       //   const type = reduceToObjectType(fieldType);
-    //       //   const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
-    //       //   relations.push({
-    //       //     kind: 'RelationField',
-    //       //     relation: relation.length === 1 ? {
-    //       //       kind: 'DirectRelation',
-    //       //       ...relation[0]
-    //       //     } : {
-    //       //       kind: 'JunctionRelation',
-    //       //       toJunction: { kind: 'DirectRelation', ...relation[0] },
-    //       //       fromJunction: { kind: 'DirectRelation', ...relation[1] },
-    //       //     },
-    //       //     field,
-    //       //   });
-    //       // }
-    //       // else {
-    //       //   details.push(createDetailField(selection, type));
-    //       // }
-    //     }
-    //       break;
-    //   }
-    // }
-
-    // return [summaries, relations];
   };
 
   const paginationArgs = (args: readonly ArgumentNode[]): Field.PaginationField | undefined => {
@@ -1082,7 +853,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 };
 
 export namespace Field {
-  export interface CollectionField {
+  export type CollectionField = {
     kind: "Collection";
     skip: boolean;
     name: string;
@@ -1099,7 +870,7 @@ export namespace Field {
     rawColumns: SQL.ColumnNode[];
   }
 
-  export interface EntityField {
+  export type EntityField = {
     kind: "EntityField";
     skip: boolean;
     name: string;
@@ -1109,7 +880,7 @@ export namespace Field {
     variants: VariantField[];
   }
 
-  export interface VariantField {
+  export type VariantField = {
     kind: "VariantField";
     table: string;
     tag: VariantTag;
@@ -1133,6 +904,10 @@ export namespace Field {
     kind: "LeafSummaryField",
     alias: string,
     aggregation: Aggregation,
+    over?: {
+      col: string,
+      value: string,
+    },
   }
 
   export type AggregationFunc =
@@ -1154,7 +929,7 @@ export namespace Field {
     raw: boolean,
   }
 
-  export interface DetailField {
+  export type DetailField = {
     kind: "DetailField";
     skip: boolean;
     name: string;
@@ -1165,18 +940,18 @@ export namespace Field {
     raw?: boolean;
   }
 
-  export interface FieldFilterCondition {
+  export type FieldFilterCondition = {
     kind: "FieldFilterCondition";
     condition: SQL.WhereOp;
     value: any;
   }
 
-  export interface FieldSortCondition {
+  export type FieldSortCondition = {
     kind: "FieldSortCondition";
     condition: SQL.SortOp;
   }
 
-  export interface RelationField {
+  export type RelationField = {
     kind: "RelationField";
     relation: Relation;
     field: CollectionField | EntityField;
@@ -1186,31 +961,31 @@ export namespace Field {
     | DirectRelation
     | JunctionRelation
 
-  export interface DirectRelation {
+  export type DirectRelation = {
     kind: "DirectRelation";
     to: string;
     parentId: string;
     childId: string;
   }
 
-  export interface JunctionRelation {
+  export type JunctionRelation = {
     kind: "JunctionRelation";
     toJunction: DirectRelation;
     fromJunction: DirectRelation;
   }
 
-  export interface PaginationField {
+  export type PaginationField = {
     kind: "PaginationField";
     offset?: number;
     limit?: number;
   }
 
-  interface CollectionMetaInfo {
+  type CollectionMetaInfo = {
     hasCascadingFilters: boolean;
     hasPagination: boolean;
   }
 
-  interface VariantMetaInfo {
+  type VariantMetaInfo = {
     tag: VariantTag;
     table: string;
     join: SQL.JoinNode;
@@ -1631,6 +1406,29 @@ export namespace Field {
     };
 
     const generateLeafSummaryField = (f: LeafSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ApplicationExpressionNode] => {
+      const agg: SQL.ExpressionNode = !f.aggregation.raw ? SQL.simpleColumnNode(table, f.aggregation.name).expr : {
+        kind: "RawExpressionNode",
+        value: f.aggregation.name
+      };
+      const args: SQL.ExpressionNode[] = f.over === undefined ? [agg] : [
+        {
+          kind: "CaseExpressionNode",
+          whens: [{
+            kind: "WhenExpressionNode",
+            cond: {
+              kind: "BinaryOpExpressionNode",
+              left: SQL.simpleColumnNode(table, f.over.col).expr,
+              op: '=',
+              right: {
+                kind: "StringExpressionNode",
+                value: f.over.value,
+              }
+            },
+            value: agg,
+          }]
+        }
+      ];
+
       return [
         {
           kind: "StringExpressionNode",
@@ -1642,12 +1440,7 @@ export namespace Field {
             kind: "RawExpressionNode",
             value: translateAggregationFuncToSql(f.aggregation.func)
           },
-          args: [
-            !f.aggregation.raw ? SQL.simpleColumnNode(table, f.aggregation.name).expr : {
-              kind: "RawExpressionNode",
-              value: f.aggregation.name
-            },
-          ]
+          args,
         },
       ];
     };
@@ -1846,7 +1639,7 @@ export namespace SQL {
     constructor(public parameter: any, public type: string) { }
   }
 
-  export interface SelectNode {
+  export type SelectNode = {
     kind: "SelectNode";
     columns: ColumnNode[];
     from: FromNode;
@@ -1857,7 +1650,7 @@ export namespace SQL {
     pagination?: PaginationNode;
   }
 
-  export interface ColumnNode {
+  export type ColumnNode = {
     kind: "ColumnNode";
     expr: ExpressionNode;
     alias?: string;
@@ -1872,46 +1665,46 @@ export namespace SQL {
     | CaseExpressionNode
     | BinaryOpExpressionNode
 
-  export interface ApplicationExpressionNode {
+  export type ApplicationExpressionNode = {
     kind: "ApplicationExpressionNode";
     func: ExpressionNode;
     args: ExpressionNode[];
   }
 
-  export interface StringExpressionNode {
+  export type StringExpressionNode = {
     kind: "StringExpressionNode";
     value: string;
   }
 
-  export interface IdentifierExpressionNode {
+  export type IdentifierExpressionNode = {
     kind: "IdentifierExpressionNode";
     name: string;
   }
 
-  export interface RawExpressionNode {
+  export type RawExpressionNode = {
     kind: "RawExpressionNode";
     value: string;
   }
 
-  export interface DotExpressionNode {
+  export type DotExpressionNode = {
     kind: "DotExpressionNode";
     left: ExpressionNode;
     right: ExpressionNode;
   }
 
-  export interface CaseExpressionNode {
+  export type CaseExpressionNode = {
     kind: "CaseExpressionNode";
     whens: WhenExpressionNode[];
     else?: ExpressionNode;
   }
 
-  export interface WhenExpressionNode {
+  export type WhenExpressionNode = {
     kind: "WhenExpressionNode";
     cond: ExpressionNode;
     value: ExpressionNode;
   }
 
-  export interface BinaryOpExpressionNode {
+  export type BinaryOpExpressionNode = {
     kind: "BinaryOpExpressionNode";
     left: ExpressionNode;
     op: "=";
@@ -1922,19 +1715,19 @@ export namespace SQL {
     | FromTableNode
     | FromSelectNode
 
-  export interface FromTableNode {
+  export type FromTableNode = {
     kind: "FromTableNode";
     table: string;
     alias: string;
   }
 
-  export interface FromSelectNode {
+  export type FromSelectNode = {
     kind: "FromSelectNode";
     select: SelectNode;
     alias: string;
   }
 
-  export interface JoinNode {
+  export type JoinNode = {
     kind: "DirectJoinNode";
     op: JoinOp;
     from: FromNode;
@@ -1948,7 +1741,7 @@ export namespace SQL {
     | 'right'
     | 'outer'
 
-  export interface GroupByNode {
+  export type GroupByNode = {
     kind: "GroupByNode";
     column: ColumnNode;
   }
@@ -1961,14 +1754,14 @@ export namespace SQL {
     | "and"
     | "or"
 
-  export interface WhereBinaryNode {
+  export type WhereBinaryNode = {
     kind: "WhereBinaryNode";
     left: WhereNode;
     op: WhereBinaryOp;
     right: WhereNode;
   }
 
-  export interface WhereCompareNode {
+  export type WhereCompareNode = {
     kind: "WhereCompareNode";
     column: ColumnNode;
     op: WhereOp;
@@ -1991,7 +1784,7 @@ export namespace SQL {
     | 'ilike'
     | 'not ilike'
 
-  export interface SortNode {
+  export type SortNode = {
     kind: "SortNode";
     column: ColumnNode;
     op: SortOp;
@@ -2001,7 +1794,7 @@ export namespace SQL {
     | 'asc'
     | 'desc'
 
-  export interface PaginationNode {
+  export type PaginationNode = {
     kind: "PaginationNode";
     limit?: number;
     offset?: number;
@@ -2071,7 +1864,7 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
     };
 
     const generateCaseExpressionNode = (n: CaseExpressionNode): T => {
-      return builder.sql`case ${builder.join(n.whens.map(generateWhenExpressionNode), '')}${n.else === undefined ? builder.empty : builder.sql`else ${generateExpressionNode(n.else)}`}end`;
+      return builder.sql`case ${builder.join(n.whens.map(generateWhenExpressionNode), '')}${n.else === undefined ? builder.empty : builder.sql`else ${generateExpressionNode(n.else)}`} end`;
     };
 
     const generateWhenExpressionNode = (n: WhenExpressionNode): T => {
