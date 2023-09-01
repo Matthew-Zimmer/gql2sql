@@ -5,9 +5,111 @@
 directive @upper on FIELD_DEFINITION
 
 interface Ingredient {
-  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
-  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  id(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: ID
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: ID
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [ID!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [ID!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): ID!
+  name(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notiLike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String!
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
+}
+
+"""Sort operations defined on fields"""
+enum Ordering {
+  asc
+  desc
 }
 
 enum IngredientKind {
@@ -16,28 +118,350 @@ enum IngredientKind {
 }
 
 type ArrayAggregations {
-  count: Int!
+  """The count of non null values of this field in this collection"""
+  count: Float
+
+  """The count of distinct non null values of this field in this collection"""
+  countd: Float
 }
 
 type StringAggregations {
-  count: Int!
-  distinct: [String!]!
-  max: String!
-  min: String!
+  """The count of non null values of this field in this collection"""
+  count: Float
+
+  """The count of distinct non null values of this field in this collection"""
+  countd: Float
+
+  """The distinct string values of this field in this collection"""
+  distinct: [String!]
+
+  """The lexicographically maximal value of this field in this collection"""
+  max: String
+
+  """The lexicographically minimum value of this field in this collection"""
+  min: String
 }
 
 type SolidIngredient implements Ingredient {
-  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
-  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  id(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: ID
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: ID
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [ID!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [ID!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): ID!
+  name(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notiLike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String!
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
-  quantity(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
+  quantity(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: Float
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: Float
+
+    """
+    Adds a filter to this field such that only values greater than the provided value are included in the collection
+    """
+    gt: Float
+
+    """
+    Adds a filter to this field such that only values greater than or equal to the provided value are included in the collection
+    """
+    lt: Float
+
+    """
+    Adds a filter to this field such that only values less than the provided value are included in the collection
+    """
+    gteq: Float
+
+    """
+    Adds a filter to this field such that only values less than or equal the provided value are included in the collection
+    """
+    lteq: Float
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [Float!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [Float!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): Float!
 }
 
 type LiquidIngredient implements Ingredient {
-  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
-  name(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
+  id(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: ID
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: ID
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [ID!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [ID!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): ID!
+  name(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notiLike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String!
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
-  amount(eq: Float, neq: Float, gt: Float, lt: Float, gteq: Float, lteq: Float, in: [Float!], notIn: [Float!], isNull: Boolean, isNotNull: Boolean): Float!
+  amount(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: Float
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: Float
+
+    """
+    Adds a filter to this field such that only values greater than the provided value are included in the collection
+    """
+    gt: Float
+
+    """
+    Adds a filter to this field such that only values greater than or equal to the provided value are included in the collection
+    """
+    lt: Float
+
+    """
+    Adds a filter to this field such that only values less than the provided value are included in the collection
+    """
+    gteq: Float
+
+    """
+    Adds a filter to this field such that only values less than or equal the provided value are included in the collection
+    """
+    lteq: Float
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [Float!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [Float!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): Float!
 }
 
 """summary"""
@@ -52,12 +476,176 @@ type Ingredients {
 }
 
 type Recipe {
-  id(eq: ID, neq: ID, in: [ID!], notIn: [ID!], isNull: Boolean, isNotNull: Boolean): ID!
-  title(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String!
-  description(eq: String, neq: String, like: String, notLike: String, ilike: String, notiLike: String, in: [String!], notIn: [String!], isNull: Boolean, isNotNull: Boolean): String
+  id(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: ID
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: ID
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [ID!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [ID!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): ID!
+  title(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notiLike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String!
+  description(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notiLike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String
   creationDate: Date!
   difficulty(eq: RecipeDifficulty, neq: RecipeDifficulty, in: [RecipeDifficulty!], notIn: [RecipeDifficulty!]): RecipeDifficulty!
-  ingredients: Ingredients!
+  ingredients(
+    """
+    Limits the number of rows to the provided value for a collection's details and summary to be based
+    """
+    limit: Int
+
+    """
+    Skips the provided value number of rows for a collection's details and summary to be based on
+    """
+    offset: Int
+  ): Ingredients!
 }
 
 enum RecipeDifficulty {
@@ -78,7 +666,17 @@ type NestedIngredientsSummary {
 type RecipesSummaryBase {
   total: ArrayAggregations!
   title: StringAggregations!
-  ingredients: NestedIngredientsSummary!
+  ingredients(
+    """
+    Limits the number of rows to the provided value for a collection's details and summary to be based
+    """
+    limit: Int
+
+    """
+    Skips the provided value number of rows for a collection's details and summary to be based on
+    """
+    offset: Int
+  ): NestedIngredientsSummary!
 }
 
 type RecipesSummaryByDifficulty {
@@ -91,7 +689,17 @@ type RecipesSummaryByDifficulty {
 type RecipesSummary {
   total: ArrayAggregations!
   title: StringAggregations!
-  ingredients: NestedIngredientsSummary!
+  ingredients(
+    """
+    Limits the number of rows to the provided value for a collection's details and summary to be based
+    """
+    limit: Int
+
+    """
+    Skips the provided value number of rows for a collection's details and summary to be based on
+    """
+    offset: Int
+  ): NestedIngredientsSummary!
   difficulty: RecipesSummaryByDifficulty!
 }
 

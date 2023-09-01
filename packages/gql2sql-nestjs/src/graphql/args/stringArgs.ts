@@ -19,7 +19,7 @@ export class StringArgs {
   ilike?: string;
 
   @Field(() => String, { nullable: true, description: "Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection" })
-  notiLike?: string;
+  notILike?: string;
 
   @Field(() => [String], { nullable: true, description: "Adds a filter to this field such that any value in the array are included in the collection" })
   in?: string[];

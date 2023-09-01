@@ -1,9 +1,6 @@
-import { inspect } from 'util';
 import {
   ArgumentNode,
-  BooleanValueNode,
   FieldNode,
-  FloatValueNode,
   GraphQLInputType,
   GraphQLInterfaceType,
   GraphQLList,
@@ -11,7 +8,6 @@ import {
   GraphQLObjectType,
   GraphQLResolveInfo,
   GraphQLType,
-  IntValueNode,
   isEnumType,
   isInterfaceType,
   isListType,
@@ -19,15 +15,14 @@ import {
   isObjectType,
   Kind,
   SelectionNode,
-  StringValueNode,
   ValueNode,
 } from 'graphql';
 
 export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLResolveInfo): T => {
   const collection = generateFieldFromQuery(info);
-  console.log("const collection =", inspect(collection, false, null));
+  // console.log("const collection =", inspect(collection, false, null));
   const select = Field.generate(collection);
-  //console.log("select", inspect(collection, false, null));
+  // console.log("select", inspect(select, false, null));
   const query = SQL.generate(builder, select);
   return query;
 }
@@ -117,11 +112,10 @@ const filterNames = {
   'in': 'in',
   'notIn': 'not in',
   'isNull': 'is',
-  'isNotNull': 'is not',
   'like': 'like',
   'notLike': 'not like',
   'ilike': 'ilike',
-  'notIlike': 'not ilike',
+  'notILike': 'not ilike',
 } as const;
 
 const aggNames = [
@@ -135,6 +129,7 @@ const aggNames = [
   'var',
   'varp',
   'countd',
+  'distinct'
 ];
 
 const toSqlLike = (x: any, nested?: boolean): any => {
@@ -797,6 +792,25 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           });
         }
       }
+      else if (name === "isNull") {
+        let value: any | undefined = undefined;
+
+        switch (arg.value.kind) {
+          case Kind.BOOLEAN:
+            value = arg.value.value;
+            break;
+          case Kind.VARIABLE:
+            value = lookupVariable(arg.value.name.value);
+            break;
+        }
+
+        if (value !== null && value !== undefined)
+          filters.push({
+            kind: 'FieldFilterCondition',
+            condition: value ? 'is' : 'is not',
+            value: new SQL.TrustedInput('null')
+          });
+      }
       else if (name in filterNames) {
         let value: any | undefined = resolveValue(arg.value);
 
@@ -817,25 +831,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             value,
           });
       }
-      else if (name === "isNull") {
-        let value: any | undefined = undefined;
 
-        switch (arg.value.kind) {
-          case Kind.BOOLEAN:
-            value = arg.value.value;
-            break;
-          case Kind.VARIABLE:
-            value = lookupVariable(arg.value.name.value);
-            break;
-        }
-
-        if (value !== null && value !== undefined)
-          filters.push({
-            kind: 'FieldFilterCondition',
-            condition: value ? 'is' : 'is not',
-            value: 'null'
-          });
-      }
     }
 
     return [sorts, filters];
@@ -918,6 +914,7 @@ export namespace Field {
     | 'var'
     | 'varp'
     | 'countd'
+    | 'distinct'
 
   export type Aggregation = {
     kind: "Aggregation",
@@ -1019,6 +1016,8 @@ export namespace Field {
       case 'min':
       case 'avg':
         return basic_agg(agg);
+      case 'distinct':
+        return basic_agg('array_agg');
       case 'std':
         return basic_agg('stddev_samp');
       case 'stdp':
@@ -1240,15 +1239,29 @@ export namespace Field {
       return collection.skip ? collection.rawColumns : [...collection.rawColumns, {
         kind: 'ColumnNode',
         expr: {
-          kind: 'ApplicationExpressionNode',
+          kind: "ApplicationExpressionNode",
           func: {
-            kind: 'RawExpressionNode',
-            value: 'json_build_object'
+            kind: "RawExpressionNode",
+            value: "coalesce",
           },
-          args: [
-            ...(!hasDetails ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
-            ...(!hasSummary ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
-          ]
+          args: [{
+            kind: 'ApplicationExpressionNode',
+            func: {
+              kind: 'RawExpressionNode',
+              value: 'json_build_object'
+            },
+            args: [
+              ...(!hasDetails ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
+              ...(!hasSummary ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
+            ]
+          }, {
+            kind: "ApplicationExpressionNode",
+            args: [],
+            func: {
+              kind: "RawExpressionNode",
+              value: "json_build_object"
+            }
+          }]
         },
         alias: collection.name,
       }];
@@ -1469,101 +1482,103 @@ export namespace Field {
       const rowNumberColumn = SQL.simpleColumnNode(collectionTable, rowNumberName);
       const fromSelectNode = collection.from as SQL.FromSelectNode;
 
-      switch (x.relation.kind) {
-        case 'DirectRelation': {
-          const joinTable = makeTableAlias();
-          const paginatedFrom: SQL.FromSelectNode | {} = !info.hasPagination ? {} : {
-            from: {
-              ...fromSelectNode,
-              select: {
-                ...fromSelectNode.select,
-                columns: [{
-                  kind: 'ColumnNode',
-                  expr: { kind: 'RawExpressionNode', value: '*' }
-                }, {
-                  kind: 'ColumnNode',
-                  expr: { kind: 'RawExpressionNode', value: `row_number() over (partition by "${fromSelectNode.select.from.alias}".${x.relation.childId})` }, // might need any order by here as well
-                  alias: rowNumberName,
-                }],
-                pagination: undefined,
-              }
-            },
-          };
+      const joinTable = makeTableAlias();
 
-          const conditions: SQL.WhereNode[] = [
-            ...collection.conditions === undefined ? [] : [collection.conditions],
-            ...fromSelectNode.select.pagination?.limit === undefined ? [] : [{
-              kind: 'WhereCompareNode' as const,
-              column: rowNumberColumn,
-              op: '<=' as const,
-              value: fromSelectNode.select.pagination?.limit! + (fromSelectNode.select.pagination?.offset ?? 0),
-            }],
-            ...fromSelectNode.select.pagination?.offset === undefined ? [] : [{
-              kind: 'WhereCompareNode' as const,
-              column: rowNumberColumn,
-              op: '>' as const,
-              value: fromSelectNode.select.pagination?.offset!,
-            }],
-          ];
+      const childId = x.relation.kind === 'DirectRelation' ? x.relation.childId : x.relation.fromJunction.childId;
+      const parentId = x.relation.kind === 'DirectRelation' ? x.relation.parentId : x.relation.toJunction.parentId;
+      const groupId = x.relation.kind === 'DirectRelation' ? x.relation.childId : x.relation.toJunction.childId;
 
-          const needsConditions = conditions.length !== 0;
+      const mappingJoins: SQL.JoinNode[] = x.relation.kind === 'DirectRelation' ? [] : (() => {
+        const junctionTable = makeTableAlias();
 
-          const groupedCollection: SQL.SelectNode = {
-            ...collection,
-            ...paginatedFrom,
-            groupBy: needsAgg ? {
-              kind: 'GroupByNode',
-              column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
-            } : undefined,
-            columns: [
-              SQL.simpleColumnNode(collectionTable, x.relation.childId, groupColumName),
-              ...collection.columns,
-            ],
-            ...!needsConditions ? {} : {
-              conditions: mergeWhereConditions(conditions, 'and'),
-            },
-          };
-          return {
-            kind: 'DirectJoinNode',
-            op: info.hasCascadingFilters ? 'inner' : 'left',
-            parentId: SQL.simpleColumnNode(table, x.relation.parentId),
-            childId: SQL.simpleColumnNode(joinTable, groupColumName),
-            from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
-          };
-        }
-        case 'JunctionRelation': {
-          const junctionTable = makeTableAlias();
-          const joinTable = makeTableAlias();
-          const groupedCollection: SQL.SelectNode = {
-            ...collection,
-            groupBy: needsAgg ? {
-              kind: 'GroupByNode',
-              column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
-            } : undefined,
-            columns: [
-              SQL.simpleColumnNode(junctionTable, x.relation.toJunction.childId, groupColumName),
-              ...collection.columns,
-            ],
+        const join: SQL.JoinNode = {
+          kind: "DirectJoinNode",
+          op: "inner",
+          from: {
+            kind: "FromTableNode",
+            table: x.relation.toJunction.to,
+            alias: junctionTable,
+          },
+          parentId: SQL.simpleColumnNode(junctionTable, x.relation.fromJunction.parentId),
+          childId: SQL.simpleColumnNode(fromSelectNode.select.from.alias, x.relation.fromJunction.childId),
+        };
+
+        return [join];
+      })();
+
+      const junctionFrom: { from: SQL.FromSelectNode } = x.relation.kind === 'DirectRelation' ? { from: fromSelectNode } : {
+        from: {
+          ...fromSelectNode,
+          select: {
+            ...fromSelectNode.select,
             joins: [
-              ...collection.joins,
-              {
-                kind: 'DirectJoinNode',
-                op: 'inner',
-                parentId: SQL.simpleColumnNode(junctionTable, x.relation.fromJunction.parentId),
-                childId: SQL.simpleColumnNode(collectionTable, x.relation.fromJunction.childId),
-                from: { kind: 'FromTableNode', table: x.relation.toJunction.to, alias: junctionTable },
-              }
-            ]
-          };
-          return {
-            kind: 'DirectJoinNode',
-            op: info.hasCascadingFilters ? 'inner' : 'left',
-            parentId: SQL.simpleColumnNode(table, x.relation.toJunction.parentId),
-            childId: SQL.simpleColumnNode(joinTable, groupColumName),
-            from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
-          };
+              ...mappingJoins,
+              ...fromSelectNode.select.joins,
+            ],
+          }
         }
-      }
+      };
+
+      const paginatedFrom: { from: SQL.FromSelectNode } = !info.hasPagination ? junctionFrom : {
+        from: {
+          ...junctionFrom.from,
+          select: {
+            ...junctionFrom.from?.select,
+            columns: [{
+              kind: 'ColumnNode',
+              expr: { kind: 'RawExpressionNode', value: '*' }
+            }, {
+              kind: 'ColumnNode',
+              expr: { kind: 'RawExpressionNode', value: `row_number() over (partition by "${junctionFrom.from.select.from.alias}"."${childId}")` }, // might need any order by here as well
+              alias: rowNumberName,
+            }],
+            pagination: undefined,
+          }
+        },
+      };
+
+      const conditions: SQL.WhereNode[] = [
+        ...collection.conditions === undefined ? [] : [collection.conditions],
+        ...fromSelectNode.select.pagination?.limit === undefined ? [] : [{
+          kind: 'WhereCompareNode' as const,
+          column: rowNumberColumn,
+          op: '<=' as const,
+          value: fromSelectNode.select.pagination?.limit! + (fromSelectNode.select.pagination?.offset ?? 0),
+        }],
+        ...fromSelectNode.select.pagination?.offset === undefined ? [] : [{
+          kind: 'WhereCompareNode' as const,
+          column: rowNumberColumn,
+          op: '>' as const,
+          value: fromSelectNode.select.pagination?.offset!,
+        }],
+      ];
+
+      const needsConditions = conditions.length !== 0;
+
+      const groupedCollection: SQL.SelectNode = {
+        ...collection,
+        ...paginatedFrom,
+        groupBy: needsAgg ? {
+          kind: 'GroupByNode',
+          column: { kind: 'ColumnNode', expr: { kind: 'IdentifierExpressionNode', name: groupColumName } },
+        } : undefined,
+        columns: [
+          SQL.simpleColumnNode(collectionTable, groupId, groupColumName),
+          ...collection.columns,
+        ],
+        ...!needsConditions ? {} : {
+          conditions: mergeWhereConditions(conditions, 'and'),
+        },
+      };
+
+
+      return {
+        kind: 'DirectJoinNode',
+        op: info.hasCascadingFilters ? 'inner' : 'left',
+        parentId: SQL.simpleColumnNode(table, parentId),
+        childId: SQL.simpleColumnNode(joinTable, groupColumName),
+        from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
+      };
     };
 
     const generateVariantFields = (x: VariantField[], rawTable: string, table: string): VariantMetaInfo[] => {
@@ -1940,8 +1955,6 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
         const subValues = value.map(whereValue).filter(x => x !== undefined);
         return subValues.length === 0 ? undefined : builder.sql`(${builder.join(subValues, ',')})`;
       }
-      else if (value === 'null')
-        return builder.raw('null');
       else if (value !== undefined)
         return builder.sql`${value}`;
       else

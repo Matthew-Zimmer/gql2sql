@@ -1,6 +1,6 @@
 import { ArgsType, Directive, Extensions, Field, Float, ID, IntersectionType, ObjectType, ReturnTypeFuncValue, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
-import { ArgsField, ArrayAggregations, CollectionField, FloatAggregations, IDAggregations, IdField, IntAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
+import { ArgsField, ArrayAggregations, CollectionField, IDAggregations, IdField, IntAggregations as NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 import { RecipeDifficulty } from '@prisma/client';
 
 registerEnumType(RecipeDifficulty, {
@@ -41,7 +41,7 @@ export class Recipe {
   difficulty?: RecipeDifficulty;
 
   @Relation('id', 'RecipeToIngredient', 'recipeId', 'ingredientId', 'Ingredient', 'id')
-  @CollectionField()
+  @CollectionField({ defaultValue: {} })
   // @ts-expect-error
   ingredients: Ingredients;
 }
@@ -165,10 +165,10 @@ function makeNestedSummary<T extends Type<unknown>>(on: T) {
     else if (ty === StringAggregations) {
 
     }
-    else if (ty === FloatAggregations) {
+    else if (ty === NumberAggregations) {
 
     }
-    else if (ty === IntAggregations) {
+    else if (ty === NumberAggregations) {
 
     }
     else {

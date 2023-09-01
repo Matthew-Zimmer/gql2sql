@@ -8,17 +8,20 @@ async function main() {
       creationDate: new Date(),
       id: "r-1",
       title: "recipe 1",
-      description: "recipe 1 description"
+      description: "recipe 1 description",
+      difficulty: "easy",
     }, {
       creationDate: new Date(),
       id: "r-2",
       title: "recipe 2",
-      description: "recipe 2 description"
+      description: "recipe 2 description",
+      difficulty: "easy",
     }, {
       creationDate: new Date(),
       id: "r-3",
       title: "recipe 3",
-      description: "recipe 3 description"
+      description: "recipe 3 description",
+      difficulty: "hard",
     }]
   });
 

@@ -1,0 +1,1221 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Details Tests should get a column in the details from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+        },
+        {
+          "id": "r-2",
+        },
+        {
+          "id": "r-3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Details Tests should get be able to skip a detail columns from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+        },
+        {
+          "id": "r-2",
+        },
+        {
+          "id": "r-3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Details Tests should get multiple columns in the details from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "difficulty": "easy",
+          "id": "r-1",
+        },
+        {
+          "difficulty": "easy",
+          "id": "r-2",
+        },
+        {
+          "difficulty": "hard",
+          "id": "r-3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string eq 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string ilike 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string in 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string isNull false 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string isNull true 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string like 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string neq 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string not ilike 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string not like 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a detail field, string notIn 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a related detail field and filter the parent collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Filter Tests should be able filter a related detail field and not filter the parent collection 1`] = `
+{
+  "data": null,
+  "errors": [
+    {
+      "extensions": {
+        "code": "INTERNAL_SERVER_ERROR",
+        "stacktrace": [
+          "Error: Cannot return null for non-nullable field Recipe.ingredients.",
+          "    at completeValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:605:13)",
+          "    at executeField (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:500:19)",
+          "    at executeFields (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:414:22)",
+          "    at completeObjectValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:925:10)",
+          "    at completeValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:646:12)",
+          "    at completeValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:595:23)",
+          "    at /home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:707:25",
+          "    at Function.from (<anonymous>)",
+          "    at completeListValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:687:34)",
+          "    at completeValue (/home/matthew/Desktop/gql2sql/examples/nestjs/node_modules/graphql/execution/execute.js:618:12)",
+        ],
+      },
+      "locations": [
+        {
+          "column": 13,
+          "line": 6,
+        },
+      ],
+      "message": "Cannot return null for non-nullable field Recipe.ingredients.",
+      "path": [
+        "recipes",
+        "details",
+        1,
+        "ingredients",
+      ],
+    },
+  ],
+}
+`;
+
+exports[`Relations Tests should be able to get multiple related data columns 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+                "name": "water",
+              },
+              {
+                "id": "i-2",
+                "name": "oil",
+              },
+              {
+                "id": "i-4",
+                "name": "sugar",
+              },
+              {
+                "id": "i-6",
+                "name": "chocolate",
+              },
+              {
+                "id": "i-7",
+                "name": "onion",
+              },
+            ],
+          },
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-2",
+                "name": "oil",
+              },
+              {
+                "id": "i-3",
+                "name": "milk",
+              },
+              {
+                "id": "i-5",
+                "name": "flour",
+              },
+              {
+                "id": "i-6",
+                "name": "chocolate",
+              },
+              {
+                "id": "i-7",
+                "name": "onion",
+              },
+            ],
+          },
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+                "name": "water",
+              },
+              {
+                "id": "i-4",
+                "name": "sugar",
+              },
+              {
+                "id": "i-5",
+                "name": "flour",
+              },
+              {
+                "id": "i-6",
+                "name": "chocolate",
+              },
+            ],
+          },
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Relations Tests should be able to get related data 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+              },
+              {
+                "id": "i-2",
+              },
+              {
+                "id": "i-4",
+              },
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-7",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-2",
+              },
+              {
+                "id": "i-3",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-7",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+              },
+              {
+                "id": "i-4",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "id": "i-6",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Relations Tests should be able to get skip related data columns 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+              {
+                "name": "oil",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "chocolate",
+              },
+              {
+                "name": "onion",
+              },
+            ],
+          },
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "name": "oil",
+              },
+              {
+                "name": "milk",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "chocolate",
+              },
+              {
+                "name": "onion",
+              },
+            ],
+          },
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "chocolate",
+              },
+            ],
+          },
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Relations Tests should be able to get skip relations of a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Sorting Tests should be able to sort on a detail field asc 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Sorting Tests should be able to sort on a detail field desc 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-3",
+          "title": "recipe 3",
+        },
+        {
+          "id": "r-2",
+          "title": "recipe 2",
+        },
+        {
+          "id": "r-1",
+          "title": "recipe 1",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Sorting Tests should be able to sort on a related detail field asc 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "name": "chocolate",
+              },
+              {
+                "name": "oil",
+              },
+              {
+                "name": "onion",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "water",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "name": "chocolate",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "milk",
+              },
+              {
+                "name": "oil",
+              },
+              {
+                "name": "onion",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "name": "chocolate",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "water",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Sorting Tests should be able to sort on a related detail field desc 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "onion",
+              },
+              {
+                "name": "oil",
+              },
+              {
+                "name": "chocolate",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "name": "onion",
+              },
+              {
+                "name": "oil",
+              },
+              {
+                "name": "milk",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "chocolate",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "name": "water",
+              },
+              {
+                "name": "sugar",
+              },
+              {
+                "name": "flour",
+              },
+              {
+                "name": "chocolate",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of a nested column over multiple aggregations with many aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "ingredients": {
+          "avg": {
+            "total": {
+              "count": 4.666666666666667,
+            },
+          },
+          "std": {
+            "total": {
+              "count": 0.5773502691896257,
+            },
+          },
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of a nested column over one aggregation with many aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "ingredients": {
+          "avg": {
+            "total": {
+              "count": 4.666666666666667,
+            },
+          },
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of an enum columns over all values with many aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "difficulty": {
+          "easy": {
+            "title": {
+              "min": "recipe 1",
+            },
+            "total": {
+              "count": 2,
+            },
+          },
+          "hard": {
+            "title": {
+              "min": "recipe 3",
+            },
+            "total": {
+              "count": 1,
+            },
+          },
+          "medium": {
+            "title": {
+              "min": null,
+            },
+            "total": {
+              "count": 0,
+            },
+          },
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of an enum columns over one value with many aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "difficulty": {
+          "easy": {
+            "title": {
+              "min": "recipe 1",
+            },
+            "total": {
+              "count": 2,
+            },
+          },
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of column from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "title": {
+          "count": 3,
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of column multi string aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "title": {
+          "count": 3,
+          "countd": 3,
+          "distinct": [
+            "recipe 1",
+            "recipe 2",
+            "recipe 3",
+          ],
+          "max": "recipe 3",
+          "min": "recipe 1",
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of multi columns with multi aggregations from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "title": {
+          "count": 3,
+          "max": "recipe 3",
+          "min": "recipe 1",
+        },
+        "total": {
+          "count": 3,
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Summary Tests should get a summary of total count from a collection 1`] = `
+{
+  "data": {
+    "recipes": {
+      "summary": {
+        "total": {
+          "count": 3,
+        },
+      },
+    },
+  },
+}
+`;
+
+exports[`Variant Tests should be able to get all sum types of a variant related data 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-4",
+                "quantity": 23,
+              },
+              {
+                "id": "i-6",
+                "quantity": 19,
+              },
+              {
+                "id": "i-7",
+                "quantity": 30,
+              },
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-6",
+                "quantity": 19,
+              },
+              {
+                "amount": 60,
+                "id": "i-3",
+              },
+              {
+                "id": "i-7",
+                "quantity": 30,
+              },
+              {
+                "id": "i-5",
+                "quantity": 14,
+              },
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-6",
+                "quantity": 19,
+              },
+              {
+                "id": "i-4",
+                "quantity": 23,
+              },
+              {
+                "id": "i-5",
+                "quantity": 14,
+              },
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Variant Tests should be able to get all sum types of a variant related data even if no values are requested of a sum type 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-7",
+              },
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+              {
+                "id": "i-4",
+              },
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-7",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+              {
+                "id": "i-6",
+              },
+              {
+                "amount": 60,
+                "id": "i-3",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+              {
+                "id": "i-4",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Variant Tests should be able to get base variant related data 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+              },
+              {
+                "id": "i-2",
+              },
+              {
+                "id": "i-4",
+              },
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-7",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-2",
+              },
+              {
+                "id": "i-3",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "id": "i-6",
+              },
+              {
+                "id": "i-7",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "id": "i-1",
+              },
+              {
+                "id": "i-4",
+              },
+              {
+                "id": "i-5",
+              },
+              {
+                "id": "i-6",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Variant Tests should be able to get sum type of variant related data 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-1",
+          "ingredients": {
+            "details": [
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "details": [
+              {
+                "amount": 20,
+                "id": "i-2",
+              },
+              {
+                "amount": 60,
+                "id": "i-3",
+              },
+            ],
+          },
+        },
+        {
+          "id": "r-3",
+          "ingredients": {
+            "details": [
+              {
+                "amount": 50,
+                "id": "i-1",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+}
+`;
