@@ -1,19 +1,21 @@
-import { Field, Float, ObjectType } from '@nestjs/graphql';
+import { Float, ObjectType } from '@nestjs/graphql';
+import { ArgsField } from '../../decorators';
+import { OrderingArgs } from '../args/ordering';
 
 @ObjectType()
 export class StringAggregations {
-  @Field(() => Float, { nullable: true, description: "The count of non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
   count?: number;
 
-  @Field(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
   countd?: number;
 
-  @Field(() => [String], { nullable: true, description: "The distinct string values of this field in this collection" })
+  @ArgsField(() => [String], { nullable: true, description: "The distinct string values of this field in this collection", args: () => OrderingArgs })
   distinct?: string[];
 
-  @Field(() => String, { nullable: true, description: "The lexicographically maximal value of this field in this collection" })
+  @ArgsField(() => String, { nullable: true, description: "The lexicographically maximal value of this field in this collection", args: () => OrderingArgs })
   max?: string;
 
-  @Field(() => String, { nullable: true, description: "The lexicographically minimum value of this field in this collection" })
+  @ArgsField(() => String, { nullable: true, description: "The lexicographically minimum value of this field in this collection", args: () => OrderingArgs })
   min?: string;
 }

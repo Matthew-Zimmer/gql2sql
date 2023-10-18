@@ -1,4 +1,4 @@
-import { registerEnumType } from "@nestjs/graphql";
+import { ArgsType, Field, registerEnumType } from "@nestjs/graphql";
 
 export enum Ordering {
   asc,
@@ -9,3 +9,9 @@ registerEnumType(Ordering, {
   name: "Ordering",
   description: "Sort operations defined on fields"
 });
+
+@ArgsType()
+export class OrderingArgs {
+  @Field(() => Ordering, { nullable: true })
+  sort?: Ordering;
+}

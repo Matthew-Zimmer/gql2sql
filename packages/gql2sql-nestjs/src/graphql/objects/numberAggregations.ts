@@ -1,37 +1,39 @@
-import { Field, Float, ObjectType } from '@nestjs/graphql';
+import { Float, ObjectType } from '@nestjs/graphql';
+import { ArgsField } from '../../decorators';
+import { OrderingArgs } from '../args/ordering';
 
 @ObjectType()
 export class NumberAggregations {
-  @Field(() => Float, { nullable: true, description: "The count of non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
   count?: number;
 
-  @Field(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
   countd?: number;
 
-  @Field(() => [Float], { nullable: true, description: "The distinct number values of this field in this collection" })
+  @ArgsField(() => [Float], { nullable: true, description: "The distinct number values of this field in this collection", args: () => OrderingArgs })
   distinct?: number[];
 
-  @Field(() => Float, { nullable: true, description: "The sum of values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The sum of values of this field in this collection", args: () => OrderingArgs })
   sum?: number;
 
-  @Field(() => Float, { nullable: true, description: "The maximal value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The maximal value of this field in this collection", args: () => OrderingArgs })
   max?: number;
 
-  @Field(() => Float, { nullable: true, description: "The minimum value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The minimum value of this field in this collection", args: () => OrderingArgs })
   min?: number;
 
-  @Field(() => Float, { nullable: true, description: "The average value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The average value of this field in this collection", args: () => OrderingArgs })
   avg?: number;
 
-  @Field(() => Float, { nullable: true, description: "The sample standard deviation value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The sample standard deviation value of this field in this collection", args: () => OrderingArgs })
   std?: number;
 
-  @Field(() => Float, { nullable: true, description: "The population standard deviation value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The population standard deviation value of this field in this collection", args: () => OrderingArgs })
   stdp?: number;
 
-  @Field(() => Float, { nullable: true, description: "The population variance value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The population variance value of this field in this collection", args: () => OrderingArgs })
   var?: number;
 
-  @Field(() => Float, { nullable: true, description: "The population variance value of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The population variance value of this field in this collection", args: () => OrderingArgs })
   varp?: number;
 }

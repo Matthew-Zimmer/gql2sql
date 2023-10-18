@@ -1,13 +1,15 @@
-import { Field, ID, Float, ObjectType } from '@nestjs/graphql';
+import { ID, Float, ObjectType } from '@nestjs/graphql';
+import { ArgsField } from '../../decorators';
+import { OrderingArgs } from '../args/ordering';
 
 @ObjectType()
 export class IDAggregations {
-  @Field(() => Float, { nullable: true, description: "The count of non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
   count?: number;
 
-  @Field(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection" })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
   countd?: number;
 
-  @Field(() => [ID], { nullable: true, description: "The distinct id values of this field in this collection" })
+  @ArgsField(() => [ID], { nullable: true, description: "The distinct id values of this field in this collection", args: () => OrderingArgs })
   distinct?: string[];
 }
