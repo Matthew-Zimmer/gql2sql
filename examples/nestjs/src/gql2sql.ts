@@ -821,20 +821,24 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
         if (isEnumType(type)) {
           const { name } = type;
+          console.log("VALUE:  ", value);
           if (Array.isArray(value)) {
-            value = value.map(x => new SQL.CastedParameter(x, name));
+            if (value.length > 0) {
+              value = value.map(x => new SQL.CastedParameter(x, name));
+            }
           }
           else if (value !== undefined) {
             value = new SQL.CastedParameter(value, name);
           }
         }
 
-        if (value !== null && value !== undefined)
+        if (value !== null && value !== undefined && (!Array.isArray(value) || value.length > 0)) {
           filters.push({
             kind: 'FieldFilterCondition',
             condition: filterNames[name as keyof typeof filterNames],
             value,
           });
+        }
       }
 
     }
