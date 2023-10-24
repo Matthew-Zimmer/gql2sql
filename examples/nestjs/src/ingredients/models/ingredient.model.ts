@@ -1,6 +1,7 @@
 import { ArgsType, Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IngredientKind } from '@prisma/client';
 import { ArgsField, ArrayAggregations, BooleanArgs, FloatField, IdField, StringAggregations, StringField, Variant, VariantOf } from 'gql2sql-nestjs';
+import { Ordering } from 'gql2sql-nestjs/dist/graphql/args/ordering';
 
 registerEnumType(IngredientKind, {
   name: 'IngredientKind',
@@ -50,12 +51,18 @@ export class LiquidIngredient {
 }
 
 
+@ArgsType()
+export class OrderingArgs {
+  @Field(() => Ordering, { nullable: true })
+  sort?: Ordering;
+}
+
 @ObjectType({ description: 'summary' })
 export class IngredientsSummary {
   @Field(() => ArrayAggregations)
   total?: ArrayAggregations;
 
-  @Field(() => StringAggregations)
+  @ArgsField(() => StringAggregations, { args: () => OrderingArgs })
   name?: StringAggregations;
 }
 

@@ -1,6 +1,6 @@
-import { ArgsType, Directive, Extensions, Field, Float, ID, IntersectionType, ObjectType, ReturnTypeFuncValue, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
+import { ArgsType, Extensions, Field, Float, ObjectType, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
-import { ArgsField, ArrayAggregations, CollectionField, IDAggregations, IdField, IntAggregations as NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
+import { ArgsField, ArrayAggregations, CollectionField, IDAggregations, IdField, NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 import { RecipeDifficulty } from '@prisma/client';
 
 registerEnumType(RecipeDifficulty, {
@@ -133,7 +133,6 @@ export class PureFloatAggregations {
 
 import { getFieldsAndDecoratorForType } from "@nestjs/graphql/dist/schema-builder/utils/get-fields-and-decorator.util";
 import { Type } from '@nestjs/common';
-import { enumerationExtensionName } from '../../gql2sql';
 
 // function ConvertAllFieldsTo<C, T extends ReturnTypeFuncValue>(on: C, to: T) {
 //   const fields = objectFields(on);

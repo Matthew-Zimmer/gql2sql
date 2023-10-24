@@ -611,6 +611,47 @@ exports[`Sorting Tests should be able to sort on a detail field desc 1`] = `
 }
 `;
 
+exports[`Sorting Tests should be able to sort on a nested summary field 1`] = `
+{
+  "data": {
+    "recipes": {
+      "details": [
+        {
+          "id": "r-3",
+          "ingredients": {
+            "summary": {
+              "name": {
+                "count": 4,
+              },
+            },
+          },
+        },
+        {
+          "id": "r-1",
+          "ingredients": {
+            "summary": {
+              "name": {
+                "count": 5,
+              },
+            },
+          },
+        },
+        {
+          "id": "r-2",
+          "ingredients": {
+            "summary": {
+              "name": {
+                "count": 5,
+              },
+            },
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
 exports[`Sorting Tests should be able to sort on a related detail field asc 1`] = `
 {
   "data": {

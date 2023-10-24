@@ -73,7 +73,7 @@ interface Ingredient {
     """
     Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
     """
-    notiLike: String
+    notILike: String
 
     """
     Adds a filter to this field such that any value in the array are included in the collection
@@ -119,27 +119,27 @@ enum IngredientKind {
 
 type ArrayAggregations {
   """The count of non null values of this field in this collection"""
-  count: Float
+  count(sort: Ordering): Float
 
   """The count of distinct non null values of this field in this collection"""
-  countd: Float
+  countd(sort: Ordering): Float
 }
 
 type StringAggregations {
   """The count of non null values of this field in this collection"""
-  count: Float
+  count(sort: Ordering): Float
 
   """The count of distinct non null values of this field in this collection"""
-  countd: Float
+  countd(sort: Ordering): Float
 
   """The distinct string values of this field in this collection"""
-  distinct: [String!]
+  distinct(sort: Ordering): [String!]
 
   """The lexicographically maximal value of this field in this collection"""
-  max: String
+  max(sort: Ordering): String
 
   """The lexicographically minimum value of this field in this collection"""
-  min: String
+  min(sort: Ordering): String
 }
 
 type SolidIngredient implements Ingredient {
@@ -211,7 +211,7 @@ type SolidIngredient implements Ingredient {
     """
     Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
     """
-    notiLike: String
+    notILike: String
 
     """
     Adds a filter to this field such that any value in the array are included in the collection
@@ -372,7 +372,7 @@ type LiquidIngredient implements Ingredient {
     """
     Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
     """
-    notiLike: String
+    notILike: String
 
     """
     Adds a filter to this field such that any value in the array are included in the collection
@@ -467,7 +467,7 @@ type LiquidIngredient implements Ingredient {
 """summary"""
 type IngredientsSummary {
   total: ArrayAggregations!
-  name: StringAggregations!
+  name(sort: Ordering): StringAggregations!
 }
 
 type Ingredients {
@@ -544,7 +544,7 @@ type Recipe {
     """
     Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
     """
-    notiLike: String
+    notILike: String
 
     """
     Adds a filter to this field such that any value in the array are included in the collection
@@ -603,7 +603,7 @@ type Recipe {
     """
     Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
     """
-    notiLike: String
+    notILike: String
 
     """
     Adds a filter to this field such that any value in the array are included in the collection

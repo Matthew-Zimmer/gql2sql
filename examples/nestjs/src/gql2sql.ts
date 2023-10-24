@@ -24,6 +24,7 @@ export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLReso
   const select = Field.generate(collection);
   // console.log("select", inspect(select, false, null));
   const query = SQL.generate(builder, select);
+  // console.log(query);
   return query;
 }
 
@@ -502,7 +503,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           case Kind.FIELD: {
             const name = selection.name.value;
             if (name === '__typename') break;
-            const { extensions, type: fieldType } = type.getFields()[name];
+            const { extensions, type: fieldType, args } = type.getFields()[name];
             const ty = reduceType(fieldType);
             const isRelation = relationExtensionName in extensions;
             const isCollection = collectionExtensionName in extensions;
@@ -626,6 +627,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                 value: enumState.value,
               } : undefined;
 
+              const [sorts, conds] = sortAndFilterConditionsFromArgs(selection.arguments ?? [], args.map(x => x.type))
+
               // there has been an aggregation before us
               // we need to generate an implicit column
               if (func !== undefined) {
@@ -635,6 +638,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   alias: name,
                   aggregation: makeAgg(func, colName, colName),
                   over,
+                  sorts,
                 });
                 aggs.push(makeAgg(name as Field.AggregationFunc, col, colName));
               }
@@ -646,6 +650,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
                   alias: name,
                   aggregation: makeAgg(name as Field.AggregationFunc, col, col),
                   over,
+                  sorts,
                 });
               }
             }
@@ -901,6 +906,7 @@ export namespace Field {
       col: string,
       value: string,
     },
+    sorts: FieldSortCondition[],
   }
 
   export type AggregationFunc =
@@ -978,6 +984,7 @@ export namespace Field {
   type CollectionMetaInfo = {
     hasCascadingFilters: boolean;
     hasPagination: boolean;
+    sorts: SQL.SortNode[]
   }
 
   type VariantMetaInfo = {
@@ -1045,13 +1052,15 @@ export namespace Field {
     let tableAliasCount = 0;
     const makeTableAlias = () => `t${tableAliasCount++}`;
 
+    let nestedSortCount = 0;
+
     const generateCollectionField = (x: CollectionField): [SQL.SelectNode, string, CollectionMetaInfo] => {
       const rawTable = makeTableAlias();
       const table = makeTableAlias();
 
       const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
-      const summary = generateSummaryFields(x.summaries, table);
-      const relations = generateRelationFields(x.relations, rawTable);
+      const [summary, summarySortNodes] = generateSummaryFields(x.summaries, table);
+      const [relations, nestedSorts] = generateRelationFields(x.relations, rawTable);
       const variants = generateVariantFields(x.variants, rawTable, table);
 
       const tables = {
@@ -1059,7 +1068,16 @@ export namespace Field {
         innerTable: rawTable,
       };
 
-      const columns = createCollectionColumns(x, details, summary, relations, variants, tables);
+      const renamedSummarySortNodes: SQL.SortNode[] = [];
+      const nextSummarySortNodes: SQL.SortNode[] = [];
+
+      for (const n of summarySortNodes) {
+        const name = `sort__${nestedSortCount++}`;
+        renamedSummarySortNodes.push({ ...n, as: name });
+        nextSummarySortNodes.push({ ...n, column: { kind: "IdentifierExpressionNode", name } });
+      }
+
+      const columns = createCollectionColumns(x, details, summary, renamedSummarySortNodes, relations, variants, tables);
       const joins = createJoins(relations, variants);
       const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
 
@@ -1079,7 +1097,7 @@ export namespace Field {
             columns: [],
             joins,
             conditions,
-            sorts: detailsSortNodes,
+            sorts: detailsSortNodes.concat(nestedSorts), // TODO RFC THIS IS A SLIGHT PROBLEM SINCE SUMMARY  ALWAYS PRECEDE  DETAILS
             pagination: !x.pagination ? undefined : {
               kind: 'PaginationNode',
               limit: x.pagination.limit,
@@ -1094,6 +1112,7 @@ export namespace Field {
       const info: CollectionMetaInfo = {
         hasCascadingFilters: hasCascadingFilters(x.details),
         hasPagination: x.pagination !== undefined,
+        sorts: nextSummarySortNodes,
       };
 
       return [node, table, info];
@@ -1104,7 +1123,7 @@ export namespace Field {
       const table = makeTableAlias();
 
       const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
-      const relations = generateRelationFields(x.relations, rawTable);
+      const [relations, nestedSorts] = generateRelationFields(x.relations, rawTable);
       const variants = generateVariantFields(x.variants, rawTable, table);
 
       const tables = {
@@ -1142,6 +1161,7 @@ export namespace Field {
       const info: CollectionMetaInfo = {
         hasCascadingFilters: hasCascadingFilters(x.details),
         hasPagination: false,
+        sorts: nestedSorts,
       };
 
       return [node, table, info];
@@ -1156,7 +1176,7 @@ export namespace Field {
       }
     };
 
-    const createCollectionColumns = (collection: CollectionField, details: SQL.ExpressionNode[], summary: SQL.ExpressionNode, relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
+    const createCollectionColumns = (collection: CollectionField, details: SQL.ExpressionNode[], summary: SQL.ExpressionNode, summarySortNodes: SQL.SortNode[], relations: SQL.JoinNode[], variants: VariantMetaInfo[], tables: { baseTable: string }): SQL.ColumnNode[] => {
       const wrap = (args: SQL.ExpressionNode[]): SQL.ExpressionNode => {
         return {
           kind: 'ApplicationExpressionNode',
@@ -1236,7 +1256,11 @@ export namespace Field {
         ]
       };
 
-      return collection.skip ? collection.rawColumns : [...collection.rawColumns, {
+      const rawSortNodes: SQL.ColumnNode[] = summarySortNodes.map(x => ({ kind: "ColumnNode", expr: x.column, alias: x.as }));
+
+      const raw = collection.rawColumns.concat(rawSortNodes);
+
+      return collection.skip ? raw : [...raw, {
         kind: 'ColumnNode',
         expr: {
           kind: "ApplicationExpressionNode",
@@ -1401,27 +1425,40 @@ export namespace Field {
       ];
     };
 
-    const generateSummaryFields = (x: SummaryField[], table: string): SQL.ExpressionNode => {
-      const args = x.flatMap(f => generateSummaryField(f, table, table));
+    const generateSummaryFields = (x: SummaryField[], table: string): [SQL.ExpressionNode, SQL.SortNode[]] => {
+      const args: SQL.ExpressionNode[] = [];
+      const sorts: SQL.SortNode[] = [];
+      for (const f of x) {
+        const [key, value, s] = generateSummaryField(f, table, table);
+        args.push(key, value);
+        sorts.push(...s);
+      }
 
-      return {
+      return [{
         kind: 'ApplicationExpressionNode',
         func: {
           kind: 'RawExpressionNode',
           value: 'json_build_object'
         },
         args
-      };
+      }, sorts];
     };
 
-    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode] => {
+    const generateSummaryField = (x: SummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode, SQL.SortNode[]] => {
       switch (x.kind) {
         case 'NodeSummaryField': return generateNodeSummaryField(x, rawTable, table);
         case 'LeafSummaryField': return generateLeafSummaryField(x, rawTable, table);
       }
     };
 
-    const generateNodeSummaryField = (f: NodeSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode] => {
+    const generateNodeSummaryField = (f: NodeSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode, SQL.SortNode[]] => {
+      const args: SQL.ExpressionNode[] = [];
+      const sorts: SQL.SortNode[] = [];
+      for (const x of f.fields) {
+        const [key, value, s] = generateSummaryField(x, table, table);
+        args.push(key, value);
+        sorts.push(...s);
+      }
       return [
         { kind: 'StringExpressionNode', value: f.alias },
         {
@@ -1430,12 +1467,13 @@ export namespace Field {
             kind: 'RawExpressionNode',
             value: 'json_build_object',
           },
-          args: f.fields.flatMap(x => generateSummaryField(x, rawTable, table))
-        }
+          args
+        },
+        sorts
       ];
     };
 
-    const generateLeafSummaryField = (f: LeafSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode] => {
+    const generateLeafSummaryField = (f: LeafSummaryField, rawTable: string, table: string): [SQL.StringExpressionNode, SQL.ExpressionNode, SQL.SortNode[]] => {
       const agg: SQL.ExpressionNode = !f.aggregation.raw ? SQL.simpleColumnNode(table, f.aggregation.name).expr : {
         kind: "RawExpressionNode",
         value: f.aggregation.name
@@ -1459,20 +1497,34 @@ export namespace Field {
         }
       ];
 
+      const sort = translateAggregationFuncToSql(f.aggregation.func, args)
+
       return [
         {
           kind: "StringExpressionNode",
           value: f.alias,
         },
-        translateAggregationFuncToSql(f.aggregation.func, args)
+        sort,
+        f.sorts.map(x => ({
+          kind: "SortNode",
+          column: sort,
+          op: x.condition,
+        }))
       ];
     };
 
-    const generateRelationFields = (x: RelationField[], table: string): SQL.JoinNode[] => {
-      return x.map(f => generateRelationField(f, table));
+    const generateRelationFields = (x: RelationField[], table: string): [SQL.JoinNode[], SQL.SortNode[]] => {
+      const joins = [];
+      const sorts = [];
+      for (const f of x) {
+        const [a, b] = generateRelationField(f, table);
+        joins.push(a);
+        sorts.push(...b);
+      }
+      return [joins, sorts];
     };
 
-    const generateRelationField = (x: RelationField, table: string): SQL.JoinNode => {
+    const generateRelationField = (x: RelationField, table: string): [SQL.JoinNode, SQL.SortNode[]] => {
       const [collection, collectionTable, info] = generateObjectField(x.field);
 
       const needsAgg = x.field.kind === "Collection";
@@ -1572,13 +1624,13 @@ export namespace Field {
       };
 
 
-      return {
+      return [{
         kind: 'DirectJoinNode',
         op: info.hasCascadingFilters ? 'inner' : 'left',
         parentId: SQL.simpleColumnNode(table, parentId),
         childId: SQL.simpleColumnNode(joinTable, groupColumName),
         from: { kind: 'FromSelectNode', select: groupedCollection, alias: joinTable },
-      };
+      }, info.sorts];
     };
 
     const generateVariantFields = (x: VariantField[], rawTable: string, table: string): VariantMetaInfo[] => {
@@ -1643,10 +1695,7 @@ export namespace Field {
     const generateFieldSortCondition = (x: FieldSortCondition, d: SQL.ExpressionNode): SQL.SortNode => {
       return {
         kind: 'SortNode',
-        column: {
-          kind: 'ColumnNode',
-          expr: d,
-        },
+        column: d,
         op: x.condition,
       };
     };
@@ -1818,8 +1867,9 @@ export namespace SQL {
 
   export type SortNode = {
     kind: "SortNode";
-    column: ColumnNode;
+    column: ExpressionNode;
     op: SortOp;
+    as?: string;
   }
 
   export type SortOp =
@@ -1967,7 +2017,7 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
     };
 
     const generateSortNode = (n: SortNode): T => {
-      return builder.sql`${generateColumnNode(n.column)} ${builder.raw(n.op)}`;
+      return builder.sql`${generateExpressionNode(n.column)} ${builder.raw(n.op)}`;
     };
 
     const generatePaginationNode = (n: PaginationNode): T => {

@@ -514,7 +514,7 @@ describe('Filter Tests', () => {
         recipes {
           details {
             id
-            title(notiLike: "Recipe%")
+            title(notILike: "Recipe%")
           }
         }
       }
@@ -648,6 +648,25 @@ describe('Sorting Tests', () => {
             ingredients {
               details {
                 name(sort: desc)
+              }
+            }
+          }
+        }
+      }
+    `);
+  });
+
+  it('should be able to sort on a nested summary field', async () => {
+    await matchGql(`
+      query {
+        recipes {
+          details {
+            id
+            ingredients {
+              summary {
+                name {
+                  count(sort: asc)
+                }
               }
             }
           }
