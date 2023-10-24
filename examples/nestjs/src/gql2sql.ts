@@ -608,7 +608,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
               else {
                 const nextEnumState: EnumSelector | undefined = enumState === undefined ? undefined : enumState.value !== undefined ? enumState : {
                   ...enumState,
-                  value: name,
+                  value: dbName,
                 };
                 const [subSummaries, subRelations, subAggs] = imp(subSelections, ty, dbName, func, nextEnumState);
                 summaries.push({
