@@ -790,6 +790,11 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
             break;
         }
 
+        switch (value as any as number) {
+          case 0: value = 'asc'; break;
+          case 1: value = 'desc'; break;
+        }
+
         if (value && ['asc', 'desc'].includes(value)) {
           sorts.push({
             kind: 'FieldSortCondition',
