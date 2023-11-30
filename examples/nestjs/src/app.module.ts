@@ -5,6 +5,7 @@ import { DirectiveLocation, GraphQLDirective } from 'graphql';
 import { upperDirectiveTransformer } from './common/directives/upper-case.directive';
 import { RecipesModule } from './recipes/recipes.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
+import { DateTimeISOResolver } from 'graphql-scalars';
 
 @Module({
   imports: [
@@ -13,18 +14,11 @@ import { IngredientsModule } from './ingredients/ingredients.module';
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: 'schema.gql',
-      transformSchema: schema => upperDirectiveTransformer(schema, 'upper'),
       installSubscriptionHandlers: true,
-      buildSchemaOptions: {
-        directives: [
-          new GraphQLDirective({
-            name: 'upper',
-            locations: [DirectiveLocation.FIELD_DEFINITION],
-          }),
-        ],
-      },
       introspection: true,
-
+      resolvers: {
+        DateTimeISO: DateTimeISOResolver,
+      }
     }),
   ],
 })

@@ -2026,7 +2026,7 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
     };
 
     const generateSortNode = (n: SortNode): T => {
-      return builder.sql`${generateExpressionNode(n.column)} ${builder.raw(n.op)}`;
+      return builder.sql`${generateExpressionNode(n.column)} ${builder.raw(n.op)} nulls last`;
     };
 
     const generatePaginationNode = (n: PaginationNode): T => {

@@ -2,8 +2,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-directive @upper on FIELD_DEFINITION
-
 interface Ingredient {
   id(
     """
@@ -102,7 +100,7 @@ interface Ingredient {
 
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
-  ): String!
+  ): String
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
 }
 
@@ -240,7 +238,7 @@ type SolidIngredient implements Ingredient {
 
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
-  ): String!
+  ): String
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
   quantity(
     """
@@ -300,7 +298,7 @@ type SolidIngredient implements Ingredient {
 
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
-  ): Float!
+  ): Float
 }
 
 type LiquidIngredient implements Ingredient {
@@ -401,7 +399,7 @@ type LiquidIngredient implements Ingredient {
 
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
-  ): String!
+  ): String
   kind(eq: IngredientKind, neq: IngredientKind, in: [IngredientKind!], notIn: [IngredientKind!], opt: Boolean): IngredientKind!
   amount(
     """
@@ -633,7 +631,49 @@ type Recipe {
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
   ): String
-  creationDate: Date!
+  creationDate(
+    """"""
+    eq: DateTimeISO
+
+    """"""
+    neq: DateTimeISO
+
+    """"""
+    before: DateTimeISO
+
+    """"""
+    after: DateTimeISO
+
+    """"""
+    gteq: DateTimeISO
+
+    """"""
+    lteq: DateTimeISO
+
+    """"""
+    in: [DateTimeISO!]
+
+    """"""
+    notIn: [DateTimeISO!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Adds a filter to this field such that the field is null or not (negative case)
+    """
+    isNotNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): DateTimeISO!
   difficulty(eq: RecipeDifficulty, neq: RecipeDifficulty, in: [RecipeDifficulty!], notIn: [RecipeDifficulty!]): RecipeDifficulty!
   ingredients(
     """
@@ -647,6 +687,11 @@ type Recipe {
     offset: Int
   ): Ingredients!
 }
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.This scalar is serialized to a string in ISO 8601 format and parsed from a string in ISO 8601 format.
+"""
+scalar DateTimeISO
 
 enum RecipeDifficulty {
   easy

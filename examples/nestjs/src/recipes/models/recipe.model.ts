@@ -2,6 +2,9 @@ import { ArgsType, Extensions, Field, Float, ObjectType, TypeMetadataStorage, re
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
 import { ArgsField, ArrayAggregations, CollectionField, IDAggregations, IdField, NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 import { RecipeDifficulty } from '@prisma/client';
+import { getFieldsAndDecoratorForType } from "@nestjs/graphql/dist/schema-builder/utils/get-fields-and-decorator.util";
+import { Type } from '@nestjs/common';
+import { DateField } from '../../utils';
 
 registerEnumType(RecipeDifficulty, {
   name: "RecipeDifficulty"
@@ -33,9 +36,8 @@ export class Recipe {
   @StringField({ nullable: true })
   description?: string | null;
 
-  @Field()
-  // @ts-expect-error
-  creationDate: Date;
+  @DateField({})
+  creationDate?: Date;
 
   @ArgsField(() => RecipeDifficulty, { args: () => RecipeDifficultyArgs })
   difficulty?: RecipeDifficulty;
@@ -130,9 +132,6 @@ export class PureFloatAggregations {
 
 
 // const X = ConvertAllFieldsTo(IngredientsSummary, PureFloatAggregations)
-
-import { getFieldsAndDecoratorForType } from "@nestjs/graphql/dist/schema-builder/utils/get-fields-and-decorator.util";
-import { Type } from '@nestjs/common';
 
 // function ConvertAllFieldsTo<C, T extends ReturnTypeFuncValue>(on: C, to: T) {
 //   const fields = objectFields(on);

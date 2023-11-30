@@ -30,7 +30,7 @@ export abstract class Ingredient {
   @IdField({})
   id?: string;
 
-  @StringField({})
+  @StringField({ nullable: true })
   name?: string;
 
   // TODO think about how to filter enums
@@ -40,7 +40,7 @@ export abstract class Ingredient {
 
 @VariantOf(() => Ingredient)
 export class SolidIngredient {
-  @FloatField({})
+  @FloatField({ nullable: true })
   quantity?: number;
 }
 

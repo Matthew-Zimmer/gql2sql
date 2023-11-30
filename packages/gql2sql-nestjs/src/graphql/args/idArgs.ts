@@ -18,9 +18,6 @@ export class IDArgs {
   @Field(() => Boolean, { nullable: true, description: "Adds a filter to this field such that the field is null or not (positive case)" })
   isNull?: boolean;
 
-  @Field(() => Boolean, { nullable: true, description: "Adds a filter to this field such that the field is null or not (negative case)" })
-  isNotNull?: boolean;
-
   @Field(() => Boolean, { nullable: true, description: "Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection " })
   opt?: boolean;
 

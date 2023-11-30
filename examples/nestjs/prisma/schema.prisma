@@ -17,7 +17,7 @@ model Recipe {
   id           String               @id
   title        String
   description  String?
-  creationDate DateTime
+  creationDate DateTime             @db.Timestamptz()
   difficulty   RecipeDifficulty     @default(easy)
   ingredients  RecipeToIngredient[]
 }
@@ -39,14 +39,14 @@ enum IngredientKind {
 
 model Ingredient {
   id      String               @id
-  name    String
+  name    String?
   kind    IngredientKind
   recipes RecipeToIngredient[]
 }
 
 model SolidIngredient {
   id       String @id
-  quantity Int
+  quantity Int?
 }
 
 model LiquidIngredient {

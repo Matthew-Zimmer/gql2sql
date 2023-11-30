@@ -53,7 +53,7 @@ async function main() {
     }, {
       id: "i-7",
       kind: "SolidIngredient",
-      name: "onion"
+      name: null,
     }]
   });
 
@@ -82,7 +82,7 @@ async function main() {
       quantity: 19
     }, {
       id: "i-7",
-      quantity: 30
+      quantity: null
     },]
   });
 

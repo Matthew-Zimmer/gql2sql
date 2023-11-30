@@ -30,6 +30,7 @@
     "class-validator": "^0.14.0",
     "gql2sql": "^1.1.12",
     "gql2sql-nestjs": "^0.5.0",
+    "graphql-scalars": "^1.22.4",
     "ts-jest": "^29.1.1"
   },
   "devDependencies": {
@@ -37,9 +38,10 @@
     "@types/jest": "^29.5.4",
     "axios": "^1.5.0",
     "jest": "^29.6.4",
-    "prisma": "^5.1.1"
+    "prisma": "^5.1.1",
+    "tsx": "^4.6.1"
   },
   "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   }
 }

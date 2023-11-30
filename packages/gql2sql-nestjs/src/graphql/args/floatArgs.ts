@@ -13,10 +13,10 @@ export class FloatArgs {
   gt?: number;
 
   @Field(() => Float, { nullable: true, description: "Adds a filter to this field such that only values greater than or equal to the provided value are included in the collection" })
-  lt?: number;
+  gteq?: number;
 
   @Field(() => Float, { nullable: true, description: "Adds a filter to this field such that only values less than the provided value are included in the collection" })
-  gteq?: number;
+  lt?: number;
 
   @Field(() => Float, { nullable: true, description: "Adds a filter to this field such that only values less than or equal the provided value are included in the collection" })
   lteq?: number;
@@ -29,9 +29,6 @@ export class FloatArgs {
 
   @Field(() => Boolean, { nullable: true, description: "Adds a filter to this field such that the field is null or not (positive case)" })
   isNull?: boolean;
-
-  @Field(() => Boolean, { nullable: true, description: "Adds a filter to this field such that the field is null or not (negative case)" })
-  isNotNull?: boolean;
 
   @Field(() => Boolean, { nullable: true, description: "Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection " })
   opt?: boolean;
