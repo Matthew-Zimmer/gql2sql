@@ -28,7 +28,7 @@ export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLReso
   const select = Field.generate(collection);
   // console.log("select", inspect(select, false, null));
   const query = SQL.generate(builder, select);
-  console.log(query);
+  // console.log(query);
   return query;
 }
 
