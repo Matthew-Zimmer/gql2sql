@@ -1107,7 +1107,26 @@ export namespace Field {
       const joins = createJoins(relations, variants);
       const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
 
-      const distinctColumns = x.distinctOn ?? [];
+      const distinctQuery = (x.distinctOn === undefined ? {
+        kind: 'FromTableNode',
+        table: x.table,
+        alias: rawTable
+      } : {
+        kind: 'FromSelectNode',
+        alias: rawTable,
+        select: {
+          kind: "SelectNode",
+          columns: x.distinctOn.map(name => ({ kind: "ColumnNode", expr: { kind: "IdentifierExpressionNode", name } })),
+          from: {
+            kind: 'FromTableNode',
+            table: x.table,
+            alias: makeTableAlias(),
+          },
+          joins: [],
+          sorts: [],
+          distinct: true,
+        }
+      }) satisfies SQL.FromNode;
 
       const node: SQL.SelectNode = {
         kind: 'SelectNode',
@@ -1117,13 +1136,8 @@ export namespace Field {
           alias: table,
           select: {
             kind: 'SelectNode',
-            from: {
-              kind: 'FromTableNode',
-              table: x.table,
-              alias: rawTable
-            },
-            columns: distinctColumns.map(name => ({ kind: "ColumnNode", expr: { kind: "IdentifierExpressionNode", name } })),
-            distinct: x.distinctOn !== undefined,
+            from: distinctQuery,
+            columns: [],
             joins,
             conditions,
             sorts: detailsSortNodes.concat(nestedSorts), // TODO RFC THIS IS A SLIGHT PROBLEM SINCE SUMMARY  ALWAYS PRECEDE  DETAILS

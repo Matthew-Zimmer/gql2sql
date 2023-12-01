@@ -25,6 +25,7 @@ export class RecipeDifficultyArgs {
   notIn?: any;
 }
 
+@Extensions({ [distinctExtensionName]: { columns: ["difficulty"] } })
 @Table()
 export class Recipe {
   @IdField({})
