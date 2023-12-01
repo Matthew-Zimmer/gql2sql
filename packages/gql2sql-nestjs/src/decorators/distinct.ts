@@ -7,7 +7,7 @@ import { distinctExtensionName } from 'gql2sql';
  * 
  * @param dbNames The database names of the columns which form the subset
  */
-export function Alias(...dbNames: string[]) {
+export function Distinct(...dbNames: string[]) {
   return applyDecorators(
     Extensions({
       [distinctExtensionName]: { columns: dbNames }
