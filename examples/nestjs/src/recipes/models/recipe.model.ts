@@ -1,28 +1,28 @@
 import { ArgsType, Extensions, Field, Float, ObjectType, TypeMetadataStorage, registerEnumType } from '@nestjs/graphql';
 import { Ingredients, IngredientsSummary } from '../../ingredients/models/ingredient.model';
-import { ArgsField, ArrayAggregations, CollectionField, IDAggregations, IdField, NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
+import { ArgsField, ArrayAggregations, CollectionField, DateField, IDAggregations, IdField, NumberAggregations, Relation, StringAggregations, StringField, Table } from 'gql2sql-nestjs';
 import { RecipeDifficulty } from '@prisma/client';
 import { getFieldsAndDecoratorForType } from "@nestjs/graphql/dist/schema-builder/utils/get-fields-and-decorator.util";
 import { Type } from '@nestjs/common';
-import { DateField } from '../../utils';
+import { distinctExtensionName } from '../../gql2sql';
 
 registerEnumType(RecipeDifficulty, {
-  name: "RecipeDifficulty"
+  name: "RecipeDifficulty",
 });
 
 @ArgsType()
 export class RecipeDifficultyArgs {
   @Field(() => RecipeDifficulty, { nullable: true })
-  eq?: RecipeDifficulty;
+  eq?: any;
 
   @Field(() => RecipeDifficulty, { nullable: true })
-  neq?: RecipeDifficulty;
+  neq?: any;
 
   @Field(() => [RecipeDifficulty], { nullable: true })
-  in?: RecipeDifficulty;
+  in?: any;
 
   @Field(() => [RecipeDifficulty], { nullable: true })
-  notIn?: RecipeDifficulty;
+  notIn?: any;
 }
 
 @Table()
@@ -40,7 +40,7 @@ export class Recipe {
   creationDate?: Date;
 
   @ArgsField(() => RecipeDifficulty, { args: () => RecipeDifficultyArgs })
-  difficulty?: RecipeDifficulty;
+  difficulty?: any;
 
   @Relation('id', 'RecipeToIngredient', 'recipeId', 'ingredientId', 'Ingredient', 'id')
   @CollectionField({ defaultValue: {} })

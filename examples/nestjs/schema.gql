@@ -30,11 +30,6 @@ interface Ingredient {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -87,11 +82,6 @@ interface Ingredient {
     Adds a filter to this field such that the field is null or not (positive case)
     """
     isNull: Boolean
-
-    """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
 
     """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
@@ -168,11 +158,6 @@ type SolidIngredient implements Ingredient {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -227,11 +212,6 @@ type SolidIngredient implements Ingredient {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -259,12 +239,12 @@ type SolidIngredient implements Ingredient {
     """
     Adds a filter to this field such that only values greater than or equal to the provided value are included in the collection
     """
-    lt: Float
+    gteq: Float
 
     """
     Adds a filter to this field such that only values less than the provided value are included in the collection
     """
-    gteq: Float
+    lt: Float
 
     """
     Adds a filter to this field such that only values less than or equal the provided value are included in the collection
@@ -285,11 +265,6 @@ type SolidIngredient implements Ingredient {
     Adds a filter to this field such that the field is null or not (positive case)
     """
     isNull: Boolean
-
-    """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
 
     """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
@@ -329,11 +304,6 @@ type LiquidIngredient implements Ingredient {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -388,11 +358,6 @@ type LiquidIngredient implements Ingredient {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -420,12 +385,12 @@ type LiquidIngredient implements Ingredient {
     """
     Adds a filter to this field such that only values greater than or equal to the provided value are included in the collection
     """
-    lt: Float
+    gteq: Float
 
     """
     Adds a filter to this field such that only values less than the provided value are included in the collection
     """
-    gteq: Float
+    lt: Float
 
     """
     Adds a filter to this field such that only values less than or equal the provided value are included in the collection
@@ -446,11 +411,6 @@ type LiquidIngredient implements Ingredient {
     Adds a filter to this field such that the field is null or not (positive case)
     """
     isNull: Boolean
-
-    """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
 
     """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
@@ -499,11 +459,6 @@ type Recipe {
     Adds a filter to this field such that the field is null or not (positive case)
     """
     isNull: Boolean
-
-    """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
 
     """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
@@ -560,11 +515,6 @@ type Recipe {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -619,11 +569,6 @@ type Recipe {
     isNull: Boolean
 
     """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
-
-    """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
     """
     opt: Boolean
@@ -632,39 +577,50 @@ type Recipe {
     sort: Ordering
   ): String
   creationDate(
-    """"""
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
     eq: DateTimeISO
 
-    """"""
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
     neq: DateTimeISO
 
-    """"""
-    before: DateTimeISO
+    """
+    Adds a filter to this field such that only values greater than (strictly afterwards) the provided value are included in the collection
+    """
+    gt: DateTimeISO
 
-    """"""
-    after: DateTimeISO
-
-    """"""
+    """
+    Adds a filter to this field such that only values greater than or equal (afterwards and including) to the provided value are included in the collection
+    """
     gteq: DateTimeISO
 
-    """"""
+    """
+    Adds a filter to this field such that only values less than (strictly before) the provided value are included in the collection
+    """
+    lt: DateTimeISO
+
+    """
+    Adds a filter to this field such that only values less than or equal (before and including) to the provided value are included in the collection
+    """
     lteq: DateTimeISO
 
-    """"""
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
     in: [DateTimeISO!]
 
-    """"""
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
     notIn: [DateTimeISO!]
 
     """
     Adds a filter to this field such that the field is null or not (positive case)
     """
     isNull: Boolean
-
-    """
-    Adds a filter to this field such that the field is null or not (negative case)
-    """
-    isNotNull: Boolean
 
     """
     Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 

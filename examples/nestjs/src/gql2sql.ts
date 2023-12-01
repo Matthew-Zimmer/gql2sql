@@ -18,13 +18,17 @@ import {
   ValueNode,
 } from 'graphql';
 
-export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLResolveInfo): T => {
-  const collection = generateFieldFromQuery(info);
+const defaultExtractGqlOptions = {
+  noEnumCast: false,
+} satisfies ExtractGqlOptions;
+
+export const prepareSQLForQuery = <T>(builder: SQL.Builder<T>, info: GraphQLResolveInfo, extractOptions?: Partial<ExtractGqlOptions>): T => {
+  const collection = generateFieldFromQuery(info, { ...defaultExtractGqlOptions, ...extractOptions });
   // console.log("const collection =", inspect(collection, false, null));
   const select = Field.generate(collection);
   // console.log("select", inspect(select, false, null));
   const query = SQL.generate(builder, select);
-  // console.log(query);
+  console.log(query);
   return query;
 }
 
@@ -68,14 +72,20 @@ export const enumerationExtensionName = 'enumeration';
 export type EnumerationHandlerExtension = {
 }
 
+export const distinctExtensionName = 'distinct';
+export type DistinctExtension = {
+  columns: string[],
+}
+
 type Extensions = {
-  [relationExtensionName]: [RelationExtension] | [RelationExtension, RelationExtension];
-  [aliasExtensionName]: AliasExtension;
-  [tableExtensionName]: TableExtension;
-  [variantExtensionName]: VariantExtension;
-  [interfaceExtensionName]: InterfaceExtension;
-  [collectionExtensionName]: CollectionHandlerExtension;
-  [enumerationExtensionName]: EnumerationHandlerExtension;
+  [relationExtensionName]: [RelationExtension] | [RelationExtension, RelationExtension],
+  [aliasExtensionName]: AliasExtension,
+  [tableExtensionName]: TableExtension,
+  [variantExtensionName]: VariantExtension,
+  [interfaceExtensionName]: InterfaceExtension,
+  [collectionExtensionName]: CollectionHandlerExtension,
+  [enumerationExtensionName]: EnumerationHandlerExtension,
+  [distinctExtensionName]: DistinctExtension,
 }
 
 export type Extension<K extends keyof Extensions> = Record<K, Extensions[K]>;
@@ -150,7 +160,11 @@ const toSqlLike = (x: any, nested?: boolean): any => {
   }
 }
 
-export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.CollectionField => {
+type ExtractGqlOptions = {
+  noEnumCast: boolean
+}
+
+export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }: ExtractGqlOptions): Field.CollectionField => {
   const root = info.fieldNodes[0];
 
   const lookupVariable = (name: string): any => {
@@ -314,7 +328,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       variants: mergeVariants(f1.variants, f2.variants),
       rawColumns: mergeRawColumns(f1.rawColumns, f2.rawColumns),
       pagination: mergePagination(f1.pagination, f2.pagination),
-      tagColumn: f1.tagColumn
+      tagColumn: f1.tagColumn,
+      distinctOn: f1.distinctOn ? (f2.distinctOn ? [...new Set(...f1.distinctOn, ...f2.distinctOn)] : f1.distinctOn) : f2.distinctOn,
     };
   }
 
@@ -703,6 +718,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
     const tableExtension = extensions[tableExtensionName] as TableExtension;
     const { tagColumn } = getExtension(extensions, interfaceExtensionName, () => ({ tagColumn: undefined }));
+    const distinct = getExtension(extensions, distinctExtensionName, () => undefined);
 
     const pagination = paginationArgs(field.arguments ?? []);
     const skip = isSkipped(field);
@@ -719,6 +735,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
       pagination,
       tagColumn,
       rawColumns: [],
+      distinctOn: distinct?.columns,
     };
   };
 
@@ -826,14 +843,14 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
         if (isEnumType(type)) {
           const { name } = type;
-          console.log("VALUE:  ", value);
+          const wrap = noEnumCast ? (x: any) => x : (x: any) => new SQL.CastedParameter(x, name);
           if (Array.isArray(value)) {
             if (value.length > 0) {
-              value = value.map(x => new SQL.CastedParameter(x, name));
+              value = value.map(wrap);
             }
           }
           else if (value !== undefined) {
-            value = new SQL.CastedParameter(value, name);
+            value = wrap(value);
           }
         }
 
@@ -845,7 +862,6 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
           });
         }
       }
-
     }
 
     return [sorts, filters];
@@ -861,40 +877,41 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo): Field.Collecti
 
 export namespace Field {
   export type CollectionField = {
-    kind: "Collection";
-    skip: boolean;
-    name: string;
-    table: string;
-    summaries: SummaryField[];
+    kind: "Collection",
+    skip: boolean,
+    name: string,
+    table: string,
+    summaries: SummaryField[],
     // details are for columns on this table
-    details: DetailField[];
+    details: DetailField[],
     // relations are for other collections
-    relations: RelationField[];
+    relations: RelationField[],
     // variants are for columns of variant data
-    variants: VariantField[];
-    pagination?: PaginationField;
-    tagColumn?: string;
-    rawColumns: SQL.ColumnNode[];
+    variants: VariantField[],
+    pagination?: PaginationField,
+    tagColumn?: string,
+    rawColumns: SQL.ColumnNode[],
+    distinctOn?: string[],
   }
 
   export type EntityField = {
-    kind: "EntityField";
-    skip: boolean;
-    name: string;
-    table: string;
-    details: DetailField[];
-    relations: RelationField[];
-    variants: VariantField[];
+    kind: "EntityField",
+    skip: boolean,
+    name: string,
+    table: string,
+    details: DetailField[],
+    relations: RelationField[],
+    variants: VariantField[],
   }
 
   export type VariantField = {
-    kind: "VariantField";
-    table: string;
-    tag: VariantTag;
-    parentId: string;
-    childId: string;
-    details: DetailField[];
-    relations: RelationField[];
+    kind: "VariantField",
+    table: string,
+    tag: VariantTag,
+    parentId: string,
+    childId: string,
+    details: DetailField[],
+    relations: RelationField[],
   }
 
   export type SummaryField =
@@ -940,31 +957,31 @@ export namespace Field {
   }
 
   export type DetailField = {
-    kind: "DetailField";
-    skip: boolean;
-    name: string;
-    alias: string;
-    conditions: FieldFilterCondition[];
-    hasOptionalConditions: boolean;
-    sorts: FieldSortCondition[];
-    raw?: boolean;
+    kind: "DetailField",
+    skip: boolean,
+    name: string,
+    alias: string,
+    conditions: FieldFilterCondition[],
+    hasOptionalConditions: boolean,
+    sorts: FieldSortCondition[],
+    raw?: boolean,
   }
 
   export type FieldFilterCondition = {
-    kind: "FieldFilterCondition";
-    condition: SQL.WhereOp;
-    value: any;
+    kind: "FieldFilterCondition",
+    condition: SQL.WhereOp,
+    value: any,
   }
 
   export type FieldSortCondition = {
-    kind: "FieldSortCondition";
-    condition: SQL.SortOp;
+    kind: "FieldSortCondition",
+    condition: SQL.SortOp,
   }
 
   export type RelationField = {
-    kind: "RelationField";
-    relation: Relation;
-    field: CollectionField | EntityField;
+    kind: "RelationField",
+    relation: Relation,
+    field: CollectionField | EntityField,
   }
 
   export type Relation =
@@ -972,38 +989,38 @@ export namespace Field {
     | JunctionRelation
 
   export type DirectRelation = {
-    kind: "DirectRelation";
-    to: string;
-    parentId: string;
-    childId: string;
+    kind: "DirectRelation",
+    to: string,
+    parentId: string,
+    childId: string,
   }
 
   export type JunctionRelation = {
-    kind: "JunctionRelation";
-    toJunction: DirectRelation;
-    fromJunction: DirectRelation;
+    kind: "JunctionRelation",
+    toJunction: DirectRelation,
+    fromJunction: DirectRelation,
   }
 
   export type PaginationField = {
-    kind: "PaginationField";
-    offset?: number;
-    limit?: number;
+    kind: "PaginationField",
+    offset?: number,
+    limit?: number,
   }
 
   type CollectionMetaInfo = {
-    hasCascadingFilters: boolean;
-    hasPagination: boolean;
-    sorts: SQL.SortNode[]
+    hasCascadingFilters: boolean,
+    hasPagination: boolean,
+    sorts: SQL.SortNode[],
   }
 
   type VariantMetaInfo = {
-    tag: VariantTag;
-    table: string;
-    join: SQL.JoinNode;
-    details: SQL.ExpressionNode[];
-    relations: SQL.JoinNode[];
-    conditions: SQL.WhereNode[];
-    sorts: SQL.SortNode[];
+    tag: VariantTag,
+    table: string,
+    join: SQL.JoinNode,
+    details: SQL.ExpressionNode[],
+    relations: SQL.JoinNode[],
+    conditions: SQL.WhereNode[],
+    sorts: SQL.SortNode[],
   }
 
   function mergeWhereConditions(conds: SQL.WhereNode[], op: SQL.WhereBinaryOp): SQL.WhereNode {
@@ -1090,6 +1107,8 @@ export namespace Field {
       const joins = createJoins(relations, variants);
       const conditions = createWhereConditions(detailsWhereNodes, variants, tables);
 
+      const distinctColumns = x.distinctOn ?? [];
+
       const node: SQL.SelectNode = {
         kind: 'SelectNode',
         columns,
@@ -1103,7 +1122,8 @@ export namespace Field {
               table: x.table,
               alias: rawTable
             },
-            columns: [],
+            columns: distinctColumns.map(name => ({ kind: "ColumnNode", expr: { kind: "IdentifierExpressionNode", name } })),
+            distinct: x.distinctOn !== undefined,
             joins,
             conditions,
             sorts: detailsSortNodes.concat(nestedSorts), // TODO RFC THIS IS A SLIGHT PROBLEM SINCE SUMMARY  ALWAYS PRECEDE  DETAILS
@@ -1723,20 +1743,21 @@ export namespace SQL {
   }
 
   export type SelectNode = {
-    kind: "SelectNode";
-    columns: ColumnNode[];
-    from: FromNode;
-    joins: JoinNode[];
-    groupBy?: GroupByNode;
-    conditions?: WhereNode;
-    sorts: SortNode[];
-    pagination?: PaginationNode;
+    kind: "SelectNode",
+    columns: ColumnNode[],
+    from: FromNode,
+    joins: JoinNode[],
+    groupBy?: GroupByNode,
+    conditions?: WhereNode,
+    sorts: SortNode[],
+    pagination?: PaginationNode,
+    distinct?: boolean,
   }
 
   export type ColumnNode = {
-    kind: "ColumnNode";
-    expr: ExpressionNode;
-    alias?: string;
+    kind: "ColumnNode",
+    expr: ExpressionNode,
+    alias?: string,
   }
 
   export type ExpressionNode =
@@ -1908,7 +1929,7 @@ export namespace SQL {
     const generateSelectNode = (n: SelectNode): T => {
       return builder.sql`\
 select \
-${n.columns.length === 0 ? builder.raw('*') : builder.join(n.columns.map(generateColumnNode), ',')} \
+${n.distinct ? builder.raw('distinct ') : builder.empty}${n.columns.length === 0 ? builder.raw('*') : builder.join(n.columns.map(generateColumnNode), ',')} \
 from ${generateFromNode(n.from)}\
 ${n.joins.length === 0 ? builder.empty : builder.join(n.joins.map(generateJoinNode), '')}\
 ${n.conditions === undefined ? builder.empty : builder.sql`where ${generateWhereNode(n.conditions)}`}\
