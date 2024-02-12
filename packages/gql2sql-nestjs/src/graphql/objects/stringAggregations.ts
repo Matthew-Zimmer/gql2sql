@@ -4,10 +4,10 @@ import { OrderingArgs } from '../args/ordering';
 
 @ObjectType()
 export class StringAggregations {
-  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   count?: number;
 
-  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   countd?: number;
 
   @ArgsField(() => [String], { nullable: true, description: "The distinct string values of this field in this collection", args: () => OrderingArgs })

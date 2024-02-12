@@ -5,10 +5,10 @@ import { DateTimeISOResolver } from 'graphql-scalars';
 
 @ObjectType()
 export class DateAggregations {
-  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   count?: number;
 
-  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   countd?: number;
 
   @ArgsField(() => [DateTimeISOResolver], { nullable: true, description: "The distinct number values of this field in this collection", args: () => OrderingArgs })

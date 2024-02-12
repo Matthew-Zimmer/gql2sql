@@ -19,7 +19,7 @@ export class RecipesService {
     // const select = Field.generate(field);
     // console.log(inspect(select, false, null, true));
     const query = prepareSQLForQuery(Prisma, info);
-    //console.log(query.text, query.values);
+    console.log(query.text, query.values);
     const [{ root }] = await this.prisma.$queryRaw<[any]>(query);
     return root;
   }

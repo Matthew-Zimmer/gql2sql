@@ -1242,60 +1242,48 @@ export namespace Field {
       const nonVariantDetails: SQL.ExpressionNode[] = [
         ...details,
         ...!needsDetailTag ? [] : [{ kind: 'StringExpressionNode' as const, value: collection.tagColumn! }, SQL.simpleColumnNode(tables.baseTable, collection.tagColumn!).expr],
-        ...collection.relations.filter(x => !x.field.skip).flatMap<SQL.ExpressionNode>(r => [
-          { kind: 'StringExpressionNode', value: r.field.name },
-          { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }
+        ...collection.relations.filter(x => !x.field.skip).flatMap(r => [
+          { kind: 'StringExpressionNode', value: r.field.name } as SQL.ExpressionNode,
+          // { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }
+          SQL.defaultedObject(tables.baseTable, r.field.name, r.field.kind),
         ]),
       ];
 
       const fullDetails: SQL.ExpressionNode = {
-        kind: "ApplicationExpressionNode",
+        kind: 'ApplicationExpressionNode',
         func: {
-          kind: "RawExpressionNode",
-          value: "coalesce"
+          kind: 'RawExpressionNode',
+          value: 'array_agg'
         },
         args: [
-          {
-            kind: 'ApplicationExpressionNode',
-            func: {
-              kind: 'RawExpressionNode',
-              value: 'array_agg'
-            },
-            args: [
-              variants.length === 0 ? wrap(nonVariantDetails) :
-                variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
-                  {
-                    kind: "CaseExpressionNode",
-                    whens: variants.map<SQL.WhenExpressionNode>(variant => ({
-                      kind: "WhenExpressionNode",
-                      cond: {
-                        kind: "BinaryOpExpressionNode",
-                        op: "=",
-                        left: {
-                          kind: "DotExpressionNode",
-                          left: {
-                            kind: "IdentifierExpressionNode",
-                            name: tables.baseTable,
-                          },
-                          right: {
-                            kind: "IdentifierExpressionNode",
-                            name: variant.tag.column,
-                          },
-                        },
-                        right: {
-                          kind: "StringExpressionNode",
-                          value: variant.tag.value
-                        },
+          variants.length === 0 ? wrap(nonVariantDetails) :
+            variants.length === 1 ? wrapVariant(nonVariantDetails, variants[0]) :
+              {
+                kind: "CaseExpressionNode",
+                whens: variants.map<SQL.WhenExpressionNode>(variant => ({
+                  kind: "WhenExpressionNode",
+                  cond: {
+                    kind: "BinaryOpExpressionNode",
+                    op: "=",
+                    left: {
+                      kind: "DotExpressionNode",
+                      left: {
+                        kind: "IdentifierExpressionNode",
+                        name: tables.baseTable,
                       },
-                      value: wrapVariant(nonVariantDetails, variant),
-                    })),
-                  }
-            ]
-          },
-          {
-            kind: "RawExpressionNode",
-            value: "array []::json[]"
-          }
+                      right: {
+                        kind: "IdentifierExpressionNode",
+                        name: variant.tag.column,
+                      },
+                    },
+                    right: {
+                      kind: "StringExpressionNode",
+                      value: variant.tag.value
+                    },
+                  },
+                  value: wrapVariant(nonVariantDetails, variant),
+                })),
+              }
         ]
       };
 
@@ -1306,29 +1294,15 @@ export namespace Field {
       return collection.skip ? raw : [...raw, {
         kind: 'ColumnNode',
         expr: {
-          kind: "ApplicationExpressionNode",
+          kind: 'ApplicationExpressionNode',
           func: {
-            kind: "RawExpressionNode",
-            value: "coalesce",
+            kind: 'RawExpressionNode',
+            value: 'json_build_object'
           },
-          args: [{
-            kind: 'ApplicationExpressionNode',
-            func: {
-              kind: 'RawExpressionNode',
-              value: 'json_build_object'
-            },
-            args: [
-              ...(!hasDetails ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
-              ...(!hasSummary ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
-            ]
-          }, {
-            kind: "ApplicationExpressionNode",
-            args: [],
-            func: {
-              kind: "RawExpressionNode",
-              value: "json_build_object"
-            }
-          }]
+          args: [
+            ...(!hasDetails ? [] : [{ kind: 'StringExpressionNode' as const, value: 'details' }, fullDetails]),
+            ...(!hasSummary ? [] : [{ kind: 'StringExpressionNode' as const, value: 'summary' }, summary]),
+          ]
         },
         alias: collection.name,
       }];
@@ -1692,6 +1666,11 @@ export namespace Field {
         SQL.simpleColumnNode(innerVariantTable, d.name, d.name === x.childId ? childIdAlias : undefined)
       ).concat(!hasChildId ? [SQL.simpleColumnNode(innerVariantTable, x.childId, childIdAlias)] : []);
 
+      const [relations, relatedSorts] = generateRelationFields(x.relations, innerVariantTable);
+
+      const relationSubColumns = x.relations.map((r, i) => SQL.simpleColumnNode(relations[i].from.alias, r.field.name));
+      const relationColumns = x.relations.flatMap(r => [{ kind: "StringExpressionNode", value: r.field.name } as SQL.ExpressionNode, SQL.defaultedObject(table, r.field.name, r.field.kind)]);
+
       return {
         table: table,
         join: {
@@ -1704,9 +1683,9 @@ export namespace Field {
             alias: variantTable,
             select: {
               kind: "SelectNode",
-              columns: subColumns,
-              joins: [],
-              sorts: [],
+              columns: subColumns.concat(relationSubColumns),
+              joins: relations,
+              sorts: relatedSorts,
               from: {
                 kind: "FromTableNode",
                 table: x.table,
@@ -1716,8 +1695,8 @@ export namespace Field {
           },
         },
         tag: x.tag,
-        details,
-        relations: [], // TODO! implement later
+        details: details.concat(relationColumns),
+        relations: [],
         conditions,
         sorts,
       };
@@ -2090,4 +2069,20 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
       alias,
     }
   }
+
+  export const defaultedObject = (table: string, column: string, kind: "Collection" | "EntityField"): ExpressionNode => {
+    switch (kind) {
+      case 'Collection':
+        return {
+          kind: "ApplicationExpressionNode",
+          func: { kind: "RawExpressionNode", value: "coalesce" },
+          args: [
+            simpleColumnNode(table, column).expr,
+            { kind: "RawExpressionNode", value: "json_build_object('details', json_array())" }
+          ]
+        }
+      case 'EntityField':
+        return simpleColumnNode(table, column).expr;
+    }
+  };
 }

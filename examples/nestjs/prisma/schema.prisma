@@ -45,11 +45,19 @@ model Ingredient {
 }
 
 model SolidIngredient {
-  id       String @id
+  id       String                @id
   quantity Int?
+  parts    SolidIngredientPart[]
 }
 
 model LiquidIngredient {
   id     String @id
   amount Float
+}
+
+model SolidIngredientPart {
+  id           String          @id
+  name         String
+  ingredientId String          @map("ingredient_id")
+  ingredient   SolidIngredient @relation(fields: [ingredientId], references: [id])
 }

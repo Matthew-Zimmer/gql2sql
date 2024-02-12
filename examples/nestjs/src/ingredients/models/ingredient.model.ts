@@ -1,6 +1,6 @@
 import { ArgsType, Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IngredientKind } from '@prisma/client';
-import { ArgsField, ArrayAggregations, BooleanArgs, FloatField, IdField, StringAggregations, StringField, Variant, VariantOf } from 'gql2sql-nestjs';
+import { ArgsField, ArrayAggregations, BooleanArgs, CollectionField, FloatField, IdField, Relation, StringAggregations, StringField, Table, Variant, VariantOf } from 'gql2sql-nestjs';
 import { Ordering } from 'gql2sql-nestjs/dist/graphql/args/ordering';
 
 registerEnumType(IngredientKind, {
@@ -38,10 +38,45 @@ export abstract class Ingredient {
   kind?: IngredientKind;
 }
 
+@Table()
+export class SolidIngredientPart {
+  @IdField({})
+  id?: string;
+
+  @StringField({})
+  name?: string;
+
+  @Relation("ingredient_id", "SolidIngredient", "id")
+  @Field(() => SolidIngredient, {})
+  ingredient?: Ingredient;
+}
+
+@ObjectType({ description: 'summary' })
+export class SolidIngredientPartsSummary {
+  @Field(() => ArrayAggregations)
+  total?: ArrayAggregations;
+
+  @ArgsField(() => StringAggregations, { args: () => OrderingArgs })
+  name?: StringAggregations;
+}
+
+@ObjectType()
+export class SolidIngredients {
+  @Field(type => IngredientsSummary, { defaultValue: {} })
+  summary?: string;
+
+  @Field(() => [SolidIngredientPart], { defaultValue: [] })
+  details?: SolidIngredientPart[];
+}
+
 @VariantOf(() => Ingredient)
 export class SolidIngredient {
   @FloatField({ nullable: true })
   quantity?: number;
+
+  @Relation("id", "SolidIngredientPart", "ingredient_id")
+  @CollectionField(() => SolidIngredients, { nullable: true })
+  parts?: SolidIngredients;
 }
 
 @VariantOf(() => Ingredient)
@@ -59,7 +94,7 @@ export class OrderingArgs {
 
 @ObjectType({ description: 'summary' })
 export class IngredientsSummary {
-  @Field(() => ArrayAggregations)
+  @Field(() => ArrayAggregations, { defaultValue: {} })
   total?: ArrayAggregations;
 
   @ArgsField(() => StringAggregations, { args: () => OrderingArgs })

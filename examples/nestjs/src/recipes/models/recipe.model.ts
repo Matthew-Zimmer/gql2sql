@@ -25,7 +25,7 @@ export class RecipeDifficultyArgs {
   notIn?: any;
 }
 
-@Extensions({ [distinctExtensionName]: { columns: ["difficulty"] } })
+// @Extensions({ [distinctExtensionName]: { columns: ["difficulty"] } })
 @Table()
 export class Recipe {
   @IdField({})
@@ -114,7 +114,7 @@ export class Recipes {
   // @ts-expect-error
   summary: RecipesSummary;
 
-  @Field(() => [Recipe], { defaultValue: [] })
+  @Field(() => [Recipe])
   // @ts-expect-error
   details: Recipe[];
 }

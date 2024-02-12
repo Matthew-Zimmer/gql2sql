@@ -130,6 +130,103 @@ type StringAggregations {
   min(sort: Ordering): String
 }
 
+type SolidIngredientPart {
+  id(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: ID
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: ID
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [ID!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [ID!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): ID!
+  name(
+    """
+    Adds a filter to this field such that only the provided value is included in the collection
+    """
+    eq: String
+
+    """
+    Adds a filter to this field such that the provided value is excluded from the collection
+    """
+    neq: String
+
+    """
+    Adds a filter to this field such that only values that are like the provided value are included in the collection
+    """
+    like: String
+
+    """
+    Adds a filter to this field such that only values that are not like the provided value are included in the collection
+    """
+    notLike: String
+
+    """
+    Adds a filter to this field such that only values that are case sensitive like the provided value are included in the collection
+    """
+    ilike: String
+
+    """
+    Adds a filter to this field such that only values that are not case sensitive like the provided value are included in the collection
+    """
+    notILike: String
+
+    """
+    Adds a filter to this field such that any value in the array are included in the collection
+    """
+    in: [String!]
+
+    """
+    Adds a filter to this field such that all values in the array are excluded from the collection
+    """
+    notIn: [String!]
+
+    """
+    Adds a filter to this field such that the field is null or not (positive case)
+    """
+    isNull: Boolean
+
+    """
+    Marks a filter on this field as optional when filtering parent collections hence this has no effect on the root collection 
+    """
+    opt: Boolean
+
+    """Adds a sort operation to this field in this collection"""
+    sort: Ordering
+  ): String!
+  ingredient: SolidIngredient!
+}
+
+type SolidIngredients {
+  summary: IngredientsSummary!
+  details: [SolidIngredientPart!]!
+}
+
 type SolidIngredient implements Ingredient {
   id(
     """
@@ -274,6 +371,17 @@ type SolidIngredient implements Ingredient {
     """Adds a sort operation to this field in this collection"""
     sort: Ordering
   ): Float
+  parts(
+    """
+    Limits the number of rows to the provided value for a collection's details and summary to be based
+    """
+    limit: Int
+
+    """
+    Skips the provided value number of rows for a collection's details and summary to be based on
+    """
+    offset: Int
+  ): SolidIngredients
 }
 
 type LiquidIngredient implements Ingredient {

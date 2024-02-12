@@ -4,10 +4,10 @@ import { OrderingArgs } from '../args/ordering';
 
 @ObjectType()
 export class IDAggregations {
-  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   count?: number;
 
-  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs })
+  @ArgsField(() => Float, { nullable: true, description: "The count of distinct non null values of this field in this collection", args: () => OrderingArgs, defaultValue: 0 })
   countd?: number;
 
   @ArgsField(() => [ID], { nullable: true, description: "The distinct id values of this field in this collection", args: () => OrderingArgs })

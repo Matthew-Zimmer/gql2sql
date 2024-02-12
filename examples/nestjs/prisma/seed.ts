@@ -131,6 +131,31 @@ async function main() {
       recipeId: "r-3"
     }]
   });
+
+  await prisma.solidIngredientPart.createMany({
+    data: [{
+      id: "sip-0",
+      name: "Part 1",
+      ingredientId: "i-4",
+    }, {
+      id: "sip-1",
+      name: "Part 2",
+      ingredientId: "i-4",
+    }, {
+      id: "sip-2",
+      name: "Part 1",
+      ingredientId: "i-5",
+    }, {
+      id: "sip-3",
+      name: "Part 1",
+      ingredientId: "i-6",
+    }, {
+      id: "sip-4",
+      name: "Part 3",
+      ingredientId: "i-4",
+    }]
+  })
+
 }
 
 main();
