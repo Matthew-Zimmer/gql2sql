@@ -379,7 +379,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
     return x;
   }
 
-  const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[], Field.VariantField[]] => {
+  const visitCollectionSelections = (selections: readonly SelectionNode[], type: GraphQLObjectType | GraphQLInterfaceType): [Field.DetailField[], Field.SummaryField[], Field.RelationField[], Field.VariantField[]] => {
     let details: Field.DetailField[] = [];
     let summaries: Field.SummaryField[] = [];
     let detailRelations: Field.RelationField[] = [];
@@ -434,7 +434,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
 
           if (relationExtensionName in extensions) {
             const relation = getExtension(extensions, relationExtensionName);
-            const type = reduceToObjectType(fieldType);
+            const type = reduceToObjectLikeType(fieldType);
             const field = collectionExtensionName in extensions ? createCollection(selection, type) : createEntity(selection, type, relation[relation.length - 1].to);
             relations.push({
               kind: 'RelationField',
@@ -711,7 +711,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
     return ifArg.value.kind === Kind.BOOLEAN && ifArg.value.value;
   };
 
-  const createCollection = (field: FieldNode, type: GraphQLObjectType): Field.CollectionField => {
+  const createCollection = (field: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType): Field.CollectionField => {
     const [details, summaries, relations, variants] = visitCollectionSelections(field.selectionSet?.selections ?? [], type);
 
     const extensions = reduceToObjectLikeType(type.getFields()['details'].type).extensions;
@@ -742,7 +742,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
     };
   };
 
-  const createEntity = (field: FieldNode, type: GraphQLObjectType, table: string): Field.EntityField => {
+  const createEntity = (field: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType, table: string): Field.EntityField => {
     const [details, relations, variants] = visitDetailSelections(field.selectionSet?.selections ?? [], type);
 
     const skip = isSkipped(field);
