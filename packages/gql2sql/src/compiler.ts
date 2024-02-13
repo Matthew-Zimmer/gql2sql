@@ -1096,6 +1096,7 @@ export namespace Field {
       const rawTable = makeTableAlias();
       const table = makeTableAlias();
 
+
       const [details, detailsWhereNodes, detailsSortNodes] = generateDetailFields(x.details, rawTable, table);
       const [summary, summarySortNodes] = generateSummaryFields(x.summaries, table);
       const [relations, nestedSorts] = generateRelationFields(x.relations, rawTable);
@@ -1261,7 +1262,7 @@ export namespace Field {
         ]),
       ];
 
-      const fullDetails: SQL.ExpressionNode = {
+      const fullDetailsInner: SQL.ExpressionNode = {
         kind: 'ApplicationExpressionNode',
         func: {
           kind: 'RawExpressionNode',
@@ -1298,6 +1299,8 @@ export namespace Field {
               }
         ]
       };
+
+      const fullDetails: SQL.ExpressionNode = collection.name !== "root" ? fullDetailsInner : { kind: "ApplicationExpressionNode", func: { kind: "RawExpressionNode", value: "coalesce" }, args: [fullDetailsInner, { kind: "RawExpressionNode", value: "'[]'::json" }] };
 
       const rawSortNodes: SQL.ColumnNode[] = summarySortNodes.map(x => ({ kind: "ColumnNode", expr: x.column, alias: x.as }));
 
