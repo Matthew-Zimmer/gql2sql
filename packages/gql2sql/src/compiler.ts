@@ -1300,7 +1300,7 @@ export namespace Field {
         ]
       };
 
-      const fullDetails: SQL.ExpressionNode = collection.name !== "root" ? fullDetailsInner : { kind: "ApplicationExpressionNode", func: { kind: "RawExpressionNode", value: "coalesce" }, args: [fullDetailsInner, { kind: "RawExpressionNode", value: "'[]'::json" }] };
+      const fullDetails: SQL.ExpressionNode = collection.name !== "root" ? fullDetailsInner : { kind: "ApplicationExpressionNode", func: { kind: "RawExpressionNode", value: "coalesce" }, args: [fullDetailsInner, { kind: "RawExpressionNode", value: "'{}'::json[]" }] };
 
       const rawSortNodes: SQL.ColumnNode[] = summarySortNodes.map(x => ({ kind: "ColumnNode", expr: x.column, alias: x.as }));
 
