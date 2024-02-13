@@ -61,7 +61,8 @@ export type VariantExtension = {
 
 export const interfaceExtensionName = 'interface';
 export type InterfaceExtension = {
-  tagColumn: string;
+  tagColumn: string,
+  tagColumnAlias: string,
 }
 
 export const collectionExtensionName = 'collection';
@@ -329,6 +330,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
       rawColumns: mergeRawColumns(f1.rawColumns, f2.rawColumns),
       pagination: mergePagination(f1.pagination, f2.pagination),
       tagColumn: f1.tagColumn,
+      tagColumnAlias: f1.tagColumnAlias,
       distinctOn: f1.distinctOn ? (f2.distinctOn ? [...new Set(...f1.distinctOn, ...f2.distinctOn)] : f1.distinctOn) : f2.distinctOn,
     };
   }
@@ -717,7 +719,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
       throw new Error(`Collection type: ${type.name}'s details does not have the associated table extension, please fix`);
 
     const tableExtension = extensions[tableExtensionName] as TableExtension;
-    const { tagColumn } = getExtension(extensions, interfaceExtensionName, () => ({ tagColumn: undefined }));
+    const { tagColumn, tagColumnAlias } = getExtension(extensions, interfaceExtensionName, () => ({ tagColumn: undefined, tagColumnAlias: undefined }));
     const distinct = getExtension(extensions, distinctExtensionName, () => undefined);
 
     const pagination = paginationArgs(field.arguments ?? []);
@@ -734,6 +736,7 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
       variants,
       pagination,
       tagColumn,
+      tagColumnAlias,
       rawColumns: [],
       distinctOn: distinct?.columns,
     };
@@ -890,6 +893,7 @@ export namespace Field {
     variants: VariantField[],
     pagination?: PaginationField,
     tagColumn?: string,
+    tagColumnAlias?: string,
     rawColumns: SQL.ColumnNode[],
     distinctOn?: string[],
   }
@@ -1241,7 +1245,7 @@ export namespace Field {
 
       const nonVariantDetails: SQL.ExpressionNode[] = [
         ...details,
-        ...!needsDetailTag ? [] : [{ kind: 'StringExpressionNode' as const, value: collection.tagColumn! }, SQL.simpleColumnNode(tables.baseTable, collection.tagColumn!).expr],
+        ...!needsDetailTag ? [] : [{ kind: 'StringExpressionNode' as const, value: collection.tagColumnAlias ?? collection.tagColumn! }, SQL.simpleColumnNode(tables.baseTable, collection.tagColumn!).expr],
         ...collection.relations.filter(x => !x.field.skip).flatMap(r => [
           { kind: 'StringExpressionNode', value: r.field.name } as SQL.ExpressionNode,
           // { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }

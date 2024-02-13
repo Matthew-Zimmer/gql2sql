@@ -8,6 +8,7 @@ export type VariantOptions = Omit<InterfaceTypeOptions, 'resolveType'> & {
    * The name of the column to use as the sum type discriminator
    */
   tagColumn?: string;
+  tagColumnAlias?: string,
 };
 
 /**
@@ -36,17 +37,18 @@ export function Variant(op1?: string | VariantOptions, op2?: VariantOptions) {
     const name = typeof op1 === 'string' ? op1 : target.name;
     const options = typeof op1 === 'object' ? op1 : op2 ?? {};
     const tagColumn = options.tagColumn ?? 'kind';
+    const tagColumnAlias = options.tagColumnAlias ?? tagColumn;
 
     return applyDecorators(
       InterfaceType({
         ...options,
         resolveType: (x) => {
-          return x.kind;
+          return x[tagColumnAlias];
         },
       }),
       Extensions({
         [tableExtensionName]: { name },
-        [interfaceExtensionName]: { tagColumn }
+        [interfaceExtensionName]: { tagColumn, tagColumnAlias }
       })
     )(target, propertyKey, descriptor);
   };
