@@ -345,6 +345,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
       details: mergeDetails(f1.details, f2.details),
       relations: mergeRelations(f1.relations, f2.relations),
       variants: mergeVariants(f1.variants, f2.variants),
+      tagColumn: f1.tagColumn,
+      tagColumnAlias: f1.tagColumnAlias,
     };
   }
 
@@ -745,7 +747,9 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
   const createEntity = (field: FieldNode, type: GraphQLObjectType | GraphQLInterfaceType, table: string): Field.EntityField => {
     const [details, relations, variants] = visitDetailSelections(field.selectionSet?.selections ?? [], type);
 
+    const extensions = type.extensions;
     const skip = isSkipped(field);
+    const { tagColumn, tagColumnAlias } = getExtension(extensions, interfaceExtensionName, () => ({ tagColumn: undefined, tagColumnAlias: undefined }));
 
     return {
       kind: 'EntityField',
@@ -755,6 +759,8 @@ export const generateFieldFromQuery = (info: GraphQLResolveInfo, { noEnumCast }:
       details,
       relations,
       variants,
+      tagColumn,
+      tagColumnAlias,
     };
   };
 
@@ -906,6 +912,8 @@ export namespace Field {
     details: DetailField[],
     relations: RelationField[],
     variants: VariantField[],
+    tagColumn?: string,
+    tagColumnAlias?: string,
   }
 
   export type VariantField = {
@@ -1328,8 +1336,11 @@ export namespace Field {
         return wrap([...args, ...variant.details]);
       }
 
+      const needsDetailTag = entity.tagColumn !== undefined && !entity.details.some(x => x.name === entity.tagColumn);
+
       const nonVariantDetails: SQL.ExpressionNode[] = [
         ...details,
+        ...!needsDetailTag ? [] : [{ kind: 'StringExpressionNode' as const, value: entity.tagColumnAlias ?? entity.tagColumn! }, SQL.simpleColumnNode(tables.baseTable, entity.tagColumn!).expr],
         ...entity.relations.filter(x => !x.field.skip).flatMap<SQL.ExpressionNode>(r => [
           { kind: 'StringExpressionNode', value: r.field.name },
           { kind: 'DotExpressionNode', left: { kind: 'IdentifierExpressionNode', name: tables.baseTable }, right: { kind: 'IdentifierExpressionNode', name: r.field.name } }
