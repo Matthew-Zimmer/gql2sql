@@ -2093,7 +2093,7 @@ ${!n.pagination ? builder.empty : generatePaginationNode(n.pagination)}\
           func: { kind: "RawExpressionNode", value: "coalesce" },
           args: [
             simpleColumnNode(table, column).expr,
-            { kind: "RawExpressionNode", value: "json_build_object('details', json_array())" }
+            { kind: "RawExpressionNode", value: "json_build_object('details', '[]'::json)" }
           ]
         }
       case 'EntityField':
